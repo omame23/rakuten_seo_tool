@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}メールアドレス管理 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5">
+                    <h2 class="mb-4">メールアドレス管理</h2>
+                    
+                    {% if emailaddresses %}
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>メールアドレス</th>
+                                        <th>認証状態</th>
+                                        <th>プライマリ</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for emailaddress in emailaddresses %}
+                                    <tr>
+                                        <td>{{ emailaddress.email }}</td>
+                                        <td>
+                                            {% if emailaddress.verified %}
+                                                <span class="badge bg-success">認証済み</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">未認証</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if emailaddress.primary %}
+                                                <i class="fas fa-check text-success"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if not emailaddress.verified %}
+                                                <form method="post" action="{% url 'account_email' %}" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <button type="submit" name="action_send" value="{{ emailaddress.email }}" 
+                                                            class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-paper-plane"></i> 認証メール送信
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">
+                            メールアドレスが登録されていません。
+                        </p>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="text-center">
+                        <a href="{% url 'accounts:dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left"></i> ダッシュボードに戻る
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

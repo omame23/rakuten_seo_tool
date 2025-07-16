@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}ダッシュボード - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                ダッシュボード
+                {% if user.is_master %}
+                    <span class="badge bg-danger ms-2">
+                        <i class="fas fa-crown"></i> マスター
+                    </span>
+                {% endif %}
+            </h1>
+            
+            <!-- マスターアカウント専用通知 -->
+            {% if user.is_master %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-crown"></i>
+                <strong>マスターアカウント</strong> 
+                全機能・全店舗データにアクセス可能です。
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            <!-- サブスクリプション状態 -->
+            {% if not has_active_subscription %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>サブスクリプションが無効です。</strong> 
+                全機能を利用するには有効なサブスクリプションが必要です。
+                <a href="{% url 'accounts:billing' %}" class="alert-link">請求情報を確認</a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            <!-- 概要カード -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <h6 class="text-muted">登録キーワード数</h6>
+                            <p class="stat-number mb-0">
+                                {% if user.is_master %}
+                                    {{ keyword_count }}
+                                    <small class="text-muted">（無制限）</small>
+                                {% else %}
+                                    {{ keyword_count }} / 10
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <h6 class="text-muted">本日の順位チェック</h6>
+                            <p class="stat-number mb-0">未実行</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <h6 class="text-muted">順位上昇キーワード</h6>
+                            <p class="stat-number mb-0">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <h6 class="text-muted">アカウント状態</h6>
+                            <p class="mb-0">
+                                {% if user.is_master %}
+                                    <span class="badge bg-danger">マスター</span>
+                                {% elif subscription_status == 'trial' %}
+                                    <span class="badge bg-info">トライアル中</span>
+                                {% elif subscription_status == 'active' %}
+                                    <span class="badge bg-success">有効</span>
+                                {% else %}
+                                    <span class="badge bg-danger">無効</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 機能メニュー -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-search"></i> SEO検索順位</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>楽天市場での検索順位を毎日自動で記録します。</p>
+                            {% if user.is_master %}
+                            <div class="alert alert-info alert-sm">
+                                <i class="fas fa-info-circle"></i> 
+                                <small>全店舗のデータを閲覧できます</small>
+                            </div>
+                            {% endif %}
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'seo_ranking:keyword_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> キーワードを登録
+                                </a>
+                                <a href="{% url 'seo_ranking:keyword_list' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-list"></i> キーワード一覧
+                                </a>
+                                {% if user.can_execute_bulk_search_today and user.is_within_trial_period or user.is_master %}
+                                <button type="button" class="btn btn-success" id="bulk-search-btn">
+                                    <i class="fas fa-play"></i> 一括順位確認
+                                </button>
+                                {% elif not user.can_execute_bulk_search_today %}
+                                <button type="button" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-clock"></i> 今日は実行済み
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-secondary" disabled>
+                                    <i class="fas fa-lock"></i> 無料期間終了
+                                </button>
+                                {% endif %}
+                                {% if user.is_master %}
+                                <a href="{% url 'seo_ranking:dashboard' %}" class="btn btn-outline-danger">
+                                    <i class="fas fa-globe"></i> 全店舗データ
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-ad"></i> RPP広告順位</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>RPP広告の掲載順位を毎日チェックし、効果を測定します。</p>
+                            {% if user.is_master %}
+                            <div class="alert alert-info alert-sm">
+                                <i class="fas fa-info-circle"></i> 
+                                <small>全店舗のデータを閲覧できます</small>
+                            </div>
+                            {% endif %}
+                            <div class="d-grid gap-2">
+                                <a href="#" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> キーワードを登録
+                                </a>
+                                <a href="#" class="btn btn-outline-primary">
+                                    <i class="fas fa-chart-bar"></i> レポートを見る
+                                </a>
+                                {% if user.is_master %}
+                                <a href="#" class="btn btn-outline-danger">
+                                    <i class="fas fa-globe"></i> 全店舗データ
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- マスターアカウント専用セクション -->
+            {% if user.is_master %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="card mb-4 border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-crown"></i> マスター管理機能</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-users fa-2x text-primary mb-3"></i>
+                                            <h6>ユーザー管理</h6>
+                                            <p class="text-muted small">全ユーザーの管理・確認</p>
+                                            <a href="/admin/accounts/user/" class="btn btn-outline-primary btn-sm">
+                                                管理画面
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-chart-line fa-2x text-success mb-3"></i>
+                                            <h6>全体統計</h6>
+                                            <p class="text-muted small">システム全体の統計データ</p>
+                                            <a href="#" class="btn btn-outline-success btn-sm">
+                                                統計表示
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-store fa-2x text-warning mb-3"></i>
+                                            <h6>全店舗データ</h6>
+                                            <p class="text-muted small">すべての店舗のSEO・RPPデータ</p>
+                                            <a href="#" class="btn btn-outline-warning btn-sm">
+                                                データ表示
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 最近の活動 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> 最近の活動</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center py-5">
+                        まだ活動履歴がありません。<br>
+                        キーワードを登録して順位チェックを開始しましょう。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        transition: transform 0.2s;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 一括検索ボタンの処理
+document.getElementById('bulk-search-btn')?.addEventListener('click', function() {
+    const button = this;
+    const originalContent = button.innerHTML;
+    
+    // 確認ダイアログ
+    if (!confirm('登録されているキーワードの順位を一括確認しますか？\n処理には時間がかかる場合があります。')) {
+        return;
+    }
+    
+    // ボタンを無効化
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中...';
+    
+    // CSRF トークンを取得
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    
+    // AJAX リクエスト
+    fetch('{% url "seo_ranking:bulk_keyword_search" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 成功メッセージを表示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <strong>一括検索が完了しました！</strong><br>
+                成功: ${data.success_count}件, エラー: ${data.error_count}件, 合計: ${data.total_count}件
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // SEOカードの前に挿入
+            const seoCard = document.querySelector('.col-md-6').querySelector('.card');
+            seoCard.parentNode.insertBefore(alertDiv, seoCard);
+            
+            // ページをリロードして最新結果を表示
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            // エラーメッセージを表示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>エラーが発生しました：</strong> ${data.error}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const seoCard = document.querySelector('.col-md-6').querySelector('.card');
+            seoCard.parentNode.insertBefore(alertDiv, seoCard);
+            
+            // ボタンを復活
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // エラーメッセージを表示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>通信エラーが発生しました</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const seoCard = document.querySelector('.col-md-6').querySelector('.card');
+        seoCard.parentNode.insertBefore(alertDiv, seoCard);
+        
+        // ボタンを復活
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    });
+});
+</script>
+{% endblock %}

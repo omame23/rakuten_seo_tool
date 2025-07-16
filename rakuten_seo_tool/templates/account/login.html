@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}ログイン - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">ログイン</h2>
+                    
+                    <form method="post" class="login-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_login" class="form-label">メールアドレス</label>
+                            <input type="email" name="login" class="form-control" id="id_login" 
+                                   placeholder="mail@example.com" required autofocus>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password" class="form-label">パスワード</label>
+                            <input type="password" name="password" class="form-control" id="id_password" 
+                                   placeholder="パスワード" required>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input type="checkbox" name="remember" class="form-check-input" id="id_remember">
+                            <label class="form-check-label" for="id_remember">
+                                ログイン状態を保持する
+                            </label>
+                        </div>
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <button type="submit" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-sign-in-alt"></i> ログイン
+                        </button>
+                        
+                        <div class="text-center">
+                            <a href="{% url 'account_reset_password' %}" class="text-decoration-none">
+                                パスワードをお忘れですか？
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-2">アカウントをお持ちでない方</p>
+                        <a href="{% url 'account_signup' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus"></i> 新規登録（初月無料）
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center text-muted">
+                <small>
+                    <i class="fas fa-lock"></i> 
+                    SSL暗号化により、お客様の情報は安全に保護されています
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-form input[type="email"],
+    .login-form input[type="password"] {
+        padding: 0.75rem;
+        font-size: 1rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .btn-primary {
+        padding: 0.75rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}

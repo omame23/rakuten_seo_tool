@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}ログアウト - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-sign-out-alt fa-4x text-primary"></i>
+                    </div>
+                    
+                    <h2 class="mb-4">ログアウト</h2>
+                    
+                    <p class="mb-4 text-muted">
+                        本当にログアウトしますか？<br>
+                        セッションが終了し、再度ログインが必要になります。
+                    </p>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>データの安全性</strong><br>
+                        ログアウト前に作業内容が保存されていることを確認してください。
+                    </div>
+                    
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <button type="submit" class="btn btn-danger btn-lg me-md-2">
+                                <i class="fas fa-sign-out-alt"></i> ログアウト
+                            </button>
+                            <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left"></i> キャンセル
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <i class="fas fa-user-circle fa-2x text-muted mb-2"></i>
+                                <h6>アカウント管理</h6>
+                                <p class="text-muted small">
+                                    <a href="{% url 'account_email' %}" class="text-decoration-none">
+                                        メールアドレス変更
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <i class="fas fa-key fa-2x text-muted mb-2"></i>
+                                <h6>セキュリティ</h6>
+                                <p class="text-muted small">
+                                    <a href="{% url 'account_change_password' %}" class="text-decoration-none">
+                                        パスワード変更
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <p class="text-muted">
+                    <i class="fas fa-clock"></i> 
+                    セッションは自動的に24時間後に期限切れとなります
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+    }
+    
+    .btn-danger {
+        background: linear-gradient(45deg, #dc3545, #c82333);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+    }
+    
+    .btn-outline-secondary {
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.2);
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+    
+    .fa-sign-out-alt {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // ログアウト確認
+    $('form').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (confirm('本当にログアウトしますか？')) {
+            // ローディング表示
+            $('button[type="submit"]').prop('disabled', true).html(
+                '<span class="spinner-border spinner-border-sm me-2"></span>ログアウト中...'
+            );
+            
+            // 少し遅延させてからsubmit
+            setTimeout(() => {
+                this.submit();
+            }, 500);
+        }
+    });
+    
+    // アニメーション効果
+    $('.card').hide().fadeIn(800);
+    
+    // セッション時間のカウントダウン（デモ）
+    let sessionTime = 24 * 60 * 60; // 24時間（秒）
+    
+    function updateSessionTimer() {
+        let hours = Math.floor(sessionTime / 3600);
+        let minutes = Math.floor((sessionTime % 3600) / 60);
+        
+        if (sessionTime <= 0) {
+            $('.text-muted').html('<i class="fas fa-exclamation-triangle text-warning"></i> セッションが期限切れです');
+            return;
+        }
+        
+        sessionTime--;
+        setTimeout(updateSessionTimer, 1000);
+    }
+    
+    // タイマー開始（実際の実装では不要）
+    // updateSessionTimer();
+});
+</script>
+{% endblock %}

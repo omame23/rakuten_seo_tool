@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}メール認証 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5 text-center">
+                    {% if confirmation %}
+                        <div class="mb-4">
+                            <i class="fas fa-check-circle fa-4x text-success"></i>
+                        </div>
+                        
+                        <h2 class="mb-4 text-success">認証が完了しました！</h2>
+                        
+                        <p class="mb-4">
+                            メールアドレスの認証が正常に完了しました。<br>
+                            30日間の無料トライアルで全機能をご利用いただけます。
+                        </p>
+                        
+                        <div class="alert alert-success" role="alert">
+                            <i class="fas fa-gift"></i>
+                            <strong>無料トライアル開始！</strong><br>
+                            今すぐダッシュボードにアクセスして、楽天SEO対策を始めましょう。
+                        </div>
+                        
+                        <form method="post" action="{% url 'account_confirm_email' confirmation.key %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> 認証を完了してダッシュボードへ
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="mb-4">
+                            <i class="fas fa-exclamation-triangle fa-4x text-warning"></i>
+                        </div>
+                        
+                        <h2 class="mb-4 text-warning">認証リンクが無効です</h2>
+                        
+                        <p class="mb-4">
+                            認証リンクが無効または期限切れです。<br>
+                            新しい認証メールを送信してください。
+                        </p>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'account_email' %}" class="btn btn-primary">
+                                <i class="fas fa-sync"></i> 認証メールを再送信
+                            </a>
+                            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-sign-in-alt"></i> ログインページに戻る
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}認証完了 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-4x text-success"></i>
+                    </div>
+                    
+                    <h2 class="mb-4 text-success">認証が完了しました！</h2>
+                    
+                    <p class="mb-4">
+                        メールアドレスの認証が正常に完了しました。<br>
+                        30日間の無料トライアルで全機能をご利用いただけます。
+                    </p>
+                    
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-gift"></i>
+                        <strong>無料トライアル開始！</strong><br>
+                        今すぐダッシュボードにアクセスして、楽天SEO対策を始めましょう。
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:dashboard' %}" class="btn btn-success btn-lg">
+                            <i class="fas fa-tachometer-alt"></i> ダッシュボードへ
+                        </a>
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home"></i> トップページに戻る
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

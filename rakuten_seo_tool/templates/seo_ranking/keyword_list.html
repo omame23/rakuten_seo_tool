@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}キーワード一覧 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>
+                        <i class="fas fa-search"></i> SEO検索順位キーワード
+                    </h1>
+                    {% if keyword_limit %}
+                    <small class="text-muted">
+                        登録キーワード数: {{ total_keywords }} / {{ keyword_limit }}
+                        {% if total_keywords >= keyword_limit %}
+                            <span class="text-danger">（上限に達しています）</span>
+                        {% endif %}
+                    </small>
+                    {% else %}
+                    <small class="text-muted">
+                        登録キーワード数: {{ total_keywords }}
+                        <span class="badge bg-danger">マスター</span>
+                    </small>
+                    {% endif %}
+                </div>
+                <div class="btn-group" role="group">
+                    {% if user.is_master or total_keywords < 10 %}
+                    <a href="{% url 'seo_ranking:keyword_create' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus"></i> 単体登録
+                    </a>
+                    <a href="{% url 'seo_ranking:keyword_bulk_create' %}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> 一括登録
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-primary" disabled title="キーワード登録数の上限に達しています">
+                        <i class="fas fa-plus"></i> 単体登録
+                    </button>
+                    <button class="btn btn-primary" disabled title="キーワード登録数の上限に達しています">
+                        <i class="fas fa-upload"></i> 一括登録
+                    </button>
+                    {% endif %}
+                    {% if user.can_execute_bulk_search_today and user.is_within_trial_period or user.is_master %}
+                    <button type="button" class="btn btn-success" id="bulk-search-btn">
+                        <i class="fas fa-play"></i> 一括順位確認
+                    </button>
+                    {% elif not user.can_execute_bulk_search_today %}
+                    <button type="button" class="btn btn-secondary" disabled>
+                        <i class="fas fa-clock"></i> 今日は実行済み
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-secondary" disabled>
+                        <i class="fas fa-lock"></i> 無料期間終了
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 検索・フィルタフォーム -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="search" class="form-label">キーワード検索</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="キーワードまたは店舗IDで検索">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="active" class="form-label">状態</label>
+                            <select class="form-select" id="active" name="active">
+                                <option value="">すべて</option>
+                                <option value="true" {% if active_filter == 'true' %}selected{% endif %}>有効</option>
+                                <option value="false" {% if active_filter == 'false' %}selected{% endif %}>無効</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> 検索
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- キーワード一覧 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>キーワード</th>
+                                    <th>店舗ID</th>
+                                    <th>状態</th>
+                                    <th>最新順位</th>
+                                    <th>登録日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for keyword in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ keyword.keyword }}</strong>
+                                        <a href="#" 
+                                           onclick="openRakutenSearch('{{ keyword.keyword|escapejs }}'); return false;"
+                                           class="ms-2 rakuten-search-link" 
+                                           title="楽天市場で検索">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                        {% if keyword.target_product_url %}
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-link"></i> 対象商品指定あり
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ keyword.rakuten_shop_id }}</td>
+                                    <td>
+                                        {% if keyword.is_active %}
+                                        <span class="badge bg-success">有効</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">無効</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% with latest_result=keyword.ranking_results.first %}
+                                        {% if latest_result %}
+                                            {% if latest_result.is_found %}
+                                            <span class="badge bg-primary">{{ latest_result.rank }}位</span>
+                                            {% else %}
+                                            <span class="badge bg-warning">圏外</span>
+                                            {% endif %}
+                                            <br><small class="text-muted">
+                                                {{ latest_result.checked_at|date:"m/d H:i" }}
+                                            </small>
+                                        {% else %}
+                                        <span class="text-muted">未実行</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ keyword.created_at|date:"Y/m/d" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-success" 
+                                                    onclick="searchKeyword({{ keyword.id }})"
+                                                    title="検索実行">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                            <a href="{% url 'seo_ranking:ranking_results' keyword.id %}" 
+                                               class="btn btn-sm btn-info" title="履歴">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                            <a href="{% url 'seo_ranking:keyword_edit' keyword.id %}" 
+                                               class="btn btn-sm btn-warning" title="編集">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'seo_ranking:keyword_delete' keyword.id %}" 
+                                               class="btn btn-sm btn-danger" title="削除">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">前へ</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in page_obj.paginator.page_range %}
+                            {% if page_num == page_obj.number %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">次へ</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">登録されたキーワードがありません</h5>
+                        <p class="text-muted">まずは検索キーワードを登録してください。</p>
+                        <a href="{% url 'seo_ranking:keyword_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> 新規キーワード登録
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% csrf_token %}
+<script>
+function searchKeyword(keywordId) {
+    // ボタンを無効化
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    // CSRFトークンを取得
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // AJAX リクエスト
+    fetch(`/seo/keywords/${keywordId}/search/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // 成功時の処理
+            if (data.rank !== null) {
+                alert(`検索完了: ${data.rank}位`);
+            } else {
+                alert('検索完了: 圏外');
+            }
+            // ページをリロード
+            location.reload();
+        } else {
+            alert(`エラー: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('検索中にエラーが発生しました。詳細: ' + error.message);
+    })
+    .finally(() => {
+        // ボタンを元に戻す
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    });
+}
+
+// 一括検索ボタンの処理
+document.getElementById('bulk-search-btn')?.addEventListener('click', function() {
+    const button = this;
+    const originalContent = button.innerHTML;
+    
+    // 確認ダイアログ
+    if (!confirm('アクティブなキーワードの順位を一括確認しますか？\n処理には時間がかかる場合があります。')) {
+        return;
+    }
+    
+    // ボタンを無効化
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中...';
+    
+    // CSRF トークンを取得
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    
+    // AJAX リクエスト
+    fetch('{% url "seo_ranking:bulk_keyword_search" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 成功メッセージを表示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <strong>一括検索が完了しました！</strong><br>
+                成功: ${data.success_count}件, エラー: ${data.error_count}件, 合計: ${data.total_count}件
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // ヘッダーの下に挿入
+            const mainContent = document.querySelector('.container .row .col-12');
+            const firstCard = mainContent.querySelector('.card');
+            mainContent.insertBefore(alertDiv, firstCard);
+            
+            // ページをリロードして最新結果を表示
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            // エラーメッセージを表示
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>エラーが発生しました：</strong> ${data.error}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const mainContent = document.querySelector('.container .row .col-12');
+            const firstCard = mainContent.querySelector('.card');
+            mainContent.insertBefore(alertDiv, firstCard);
+            
+            // ボタンを復活
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // エラーメッセージを表示
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <strong>通信エラーが発生しました</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const mainContent = document.querySelector('.container .row .col-12');
+        const firstCard = mainContent.querySelector('.card');
+        mainContent.insertBefore(alertDiv, firstCard);
+        
+        // ボタンを復活
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    });
+});
+
+// 楽天市場検索を開く関数
+function openRakutenSearch(keyword) {
+    // スペースを+に変換してURLエンコード
+    const encodedKeyword = encodeURIComponent(keyword).replace(/%20/g, '+');
+    const url = `https://search.rakuten.co.jp/search/mall/${encodedKeyword}/`;
+    window.open(url, '_blank');
+}
+
+// デバッグ用
+console.log('JavaScript loaded successfully');
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 楽天市場検索リンクのスタイル */
+.rakuten-search-link {
+    color: #bf0000;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.rakuten-search-link:hover {
+    opacity: 1;
+    color: #bf0000;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(source:*)",
+      "Bash(python manage.py:*)",
+      "Bash(mkdir:*)",
+      "Bash(python3 manage.py makemigrations:*)",
+      "WebFetch(domain:webservice.rakuten.co.jp)",
+      "Bash(python3 manage.py shell:*)",
+      "Bash(python3 test:*)",
+      "Bash(python3:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}

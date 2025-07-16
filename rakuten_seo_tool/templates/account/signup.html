@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}新規登録 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">新規会員登録</h2>
+                    <p class="text-center text-muted mb-4">
+                        <span class="badge bg-success">初月無料</span>
+                        クレジットカード登録で全機能をお試しいただけます
+                    </p>
+                    
+                    <form method="post" class="signup-form needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- エラー表示 -->
+                        {% if form.errors %}
+                            <div class="alert alert-danger" role="alert">
+                                <h6><i class="fas fa-exclamation-triangle"></i> 入力内容をご確認ください</h6>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <p class="mb-1 small">{{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <h5 class="mb-3">アカウント情報</h5>
+                        
+                        <div class="mb-3">
+                            <label for="id_email" class="form-label">メールアドレス <span class="text-danger">*</span></label>
+                            <input type="email" name="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" 
+                                   id="id_email" placeholder="mail@example.com" required 
+                                   value="{{ form.email.value|default:'' }}">
+                            <small class="form-text text-muted">ログイン時に使用します</small>
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.email.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_password1" class="form-label">パスワード <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="password1" class="form-control {% if form.password1.errors %}is-invalid{% endif %}" 
+                                           id="id_password1" placeholder="8文字以上" required minlength="8">
+                                    <button class="btn btn-outline-secondary password-toggle" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">8文字以上で設定してください</small>
+                                {% if form.password1.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.password1.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_password2" class="form-label">パスワード（確認） <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="password2" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" 
+                                           id="id_password2" placeholder="もう一度入力" required minlength="8">
+                                    <button class="btn btn-outline-secondary password-toggle" type="button">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                {% if form.password2.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.password2.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <h5 class="mb-3 mt-4">会社情報</h5>
+                        
+                        <div class="mb-3">
+                            <label for="id_company_name" class="form-label">会社名 <span class="text-danger">*</span></label>
+                            <input type="text" name="company_name" class="form-control {% if form.company_name.errors %}is-invalid{% endif %}" 
+                                   id="id_company_name" placeholder="株式会社○○" required minlength="2"
+                                   value="{{ form.company_name.value|default:'' }}">
+                            <small class="form-text text-muted">正式な会社名・屋号を入力してください</small>
+                            {% if form.company_name.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.company_name.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_contact_name" class="form-label">担当者名 <span class="text-danger">*</span></label>
+                                <input type="text" name="contact_name" class="form-control {% if form.contact_name.errors %}is-invalid{% endif %}" 
+                                       id="id_contact_name" placeholder="山田太郎" required minlength="2"
+                                       value="{{ form.contact_name.value|default:'' }}">
+                                <small class="form-text text-muted">ご担当者様のお名前を入力してください</small>
+                                {% if form.contact_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.contact_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_phone_number" class="form-label">電話番号 <span class="text-danger">*</span></label>
+                                <input type="tel" name="phone_number" class="form-control {% if form.phone_number.errors %}is-invalid{% endif %}" 
+                                       id="id_phone_number" placeholder="03-1234-5678" required pattern="[0-9\-]+"
+                                       value="{{ form.phone_number.value|default:'' }}">
+                                <small class="form-text text-muted">連絡可能な電話番号を入力してください</small>
+                                {% if form.phone_number.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.phone_number.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_rakuten_shop_id" class="form-label">楽天店舗ID <span class="text-danger">*</span></label>
+                            <input type="text" name="rakuten_shop_id" class="form-control {% if form.rakuten_shop_id.errors %}is-invalid{% endif %}" 
+                                   id="id_rakuten_shop_id" placeholder="例：rakuten-shop" required minlength="3"
+                                   value="{{ form.rakuten_shop_id.value|default:'' }}">
+                            <small class="form-text text-muted">楽天市場の店舗IDを入力してください</small>
+                            {% if form.rakuten_shop_id.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.rakuten_shop_id.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-check mb-4">
+                            <input type="checkbox" name="terms_agreement" class="form-check-input {% if form.terms_agreement.errors %}is-invalid{% endif %}" 
+                                   id="id_terms_agreement" required>
+                            <label class="form-check-label" for="id_terms_agreement">
+                                <a href="/terms/" target="_blank">利用規約</a>および
+                                <a href="/privacy/" target="_blank">プライバシーポリシー</a>に同意します
+                            </label>
+                            {% if form.terms_agreement.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.terms_agreement.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="submit-btn">
+                            <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            <i class="fas fa-user-plus"></i> 無料で始める
+                        </button>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <p class="mb-2">既にアカウントをお持ちの方</p>
+                        <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-sign-in-alt"></i> ログイン
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-light rounded">
+                <h5><i class="fas fa-gift text-success"></i> 初月無料トライアル特典</h5>
+                <ul class="mb-0">
+                    <li>全機能が利用可能</li>
+                    <li>クレジットカード登録必須（初月は課金されません）</li>
+                    <li>いつでもキャンセル可能</li>
+                    <li>月額3,980円（税込）※2ヶ月目以降</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signup-form input {
+        padding: 0.75rem;
+        font-size: 1rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .btn-primary {
+        padding: 0.75rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ result.keyword.keyword }}の検索結果詳細 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-search"></i> {{ result.keyword.keyword }}の検索結果詳細
+                </h1>
+                <div>
+                    <a href="{% url 'seo_ranking:export_ranking_csv' result.id %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> CSVエクスポート
+                    </a>
+                    <a href="{% url 'seo_ranking:ranking_results' result.keyword.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> 履歴一覧へ
+                    </a>
+                </div>
+            </div>
+            
+            <!-- 検索結果概要 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> 検索結果概要
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6 class="text-muted">検索日時</h6>
+                            <p class="mb-0">{{ result.checked_at|date:"Y/m/d H:i" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">順位</h6>
+                            <p class="mb-0">
+                                {% if result.is_found %}
+                                <span class="badge bg-primary fs-5">{{ result.rank }}位</span>
+                                {% else %}
+                                <span class="badge bg-warning fs-5">圏外</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">総商品数</h6>
+                            <p class="mb-0">{{ result.total_products|default:"-"|intcomma }}件</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="text-muted">店舗ID</h6>
+                            <p class="mb-0">{{ result.keyword.rakuten_shop_id|default:"-" }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 統計情報 -->
+                    {% if statistics %}
+                    <div class="row mt-4">
+                        {% if statistics.price %}
+                        <div class="col-md-3">
+                            <h6 class="text-muted">価格レンジ</h6>
+                            <p class="mb-0 small">
+                                ¥{{ statistics.price.min|intcomma }}〜¥{{ statistics.price.max|intcomma }}<br>
+                                <span class="text-muted">平均: ¥{{ statistics.price.avg|intcomma }}</span>
+                            </p>
+                        </div>
+                        {% endif %}
+                        {% if statistics.review_count %}
+                        <div class="col-md-3">
+                            <h6 class="text-muted">レビュー件数</h6>
+                            <p class="mb-0 small">
+                                {{ statistics.review_count.min }}〜{{ statistics.review_count.max }}件<br>
+                                <span class="text-muted">平均: {{ statistics.review_count.avg }}件</span>
+                            </p>
+                        </div>
+                        {% endif %}
+                        {% if statistics.review_average %}
+                        <div class="col-md-3">
+                            <h6 class="text-muted">レビュー点数</h6>
+                            <p class="mb-0 small">
+                                {{ statistics.review_average.min|floatformat:1 }}〜{{ statistics.review_average.max|floatformat:1 }}点<br>
+                                <span class="text-muted">平均: {{ statistics.review_average.avg|floatformat:1 }}点</span>
+                            </p>
+                        </div>
+                        {% endif %}
+                        {% if statistics.keyword_frequency %}
+                        <div class="col-md-3">
+                            <h6 class="text-muted">キーワード出現</h6>
+                            <p class="mb-0 small">
+                                {{ statistics.keyword_frequency.min }}〜{{ statistics.keyword_frequency.max }}回<br>
+                                <span class="text-muted">平均: {{ statistics.keyword_frequency.avg }}回</span>
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% if result.found_product_url %}
+                    <div class="mt-3">
+                        <h6 class="text-muted">商品URL</h6>
+                        <a href="{{ result.found_product_url }}" target="_blank" class="text-truncate d-block">
+                            {{ result.found_product_url }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 表示形式切り替え -->
+            <div class="mb-3">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-primary active" id="btn-table-view">表形式</button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-thumbnail-view">サムネイル比較</button>
+                </div>
+            </div>
+            
+            <!-- AI分析結果 -->
+            {% if result.ai_analysis %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot"></i> AI分析結果
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="ai-analysis-content">
+                        {{ result.ai_analysis|linebreaksbr }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            
+            <!-- テーブルビュー -->
+            <div id="table-view" class="view-content">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="60">順位</th>
+                                        <th width="80">画像</th>
+                                        <th>商品名・キャッチコピー</th>
+                                        <th width="100">価格</th>
+                                        <th width="80">ポイント</th>
+                                        <th width="100">レビュー</th>
+                                        <th width="150">キーワード出現</th>
+                                        <th width="60">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in products_with_frequency %}
+                                    <tr class="{% if item.product.is_own_product %}table-info{% endif %}">
+                                        <td>
+                                            <span class="badge bg-secondary">{{ item.product.rank }}位</span>
+                                        </td>
+                                        <td>
+                                            {% if item.product.image_url %}
+                                            <a href="{{ item.product.product_url }}" target="_blank">
+                                                <img src="{{ item.product.get_large_image_url }}" alt="{{ item.product.product_name }}" 
+                                                     style="width: 60px; height: 60px; object-fit: cover;">
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <a href="{{ item.product.product_url }}" target="_blank" class="text-decoration-none text-dark">
+                                                    {{ item.product.product_name }}
+                                                </a>
+                                            </div>
+                                            {% if item.product.catchcopy %}
+                                            <div class="small text-muted mt-1">{{ item.product.catchcopy }}</div>
+                                            {% endif %}
+                                            <div class="small text-muted">{{ item.product.shop_name }}</div>
+                                            {% if item.product.is_own_product %}
+                                            <span class="badge bg-primary">自店舗</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>¥{{ item.product.price|intcomma }}</td>
+                                        <td>{{ item.product.point_rate|default:1 }}倍</td>
+                                        <td>
+                                            {% if item.product.review_count > 0 %}
+                                            <div class="small">
+                                                <div class="text-nowrap">{{ item.product.review_count }}件</div>
+                                                <div class="text-warning text-nowrap">
+                                                    {% for i in "12345" %}{% if i|add:0 <= item.product.review_average|floatformat:0|add:0 %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}{% endfor %}
+                                                </div>
+                                                <div class="text-muted">({{ item.product.review_average|floatformat:1 }})</div>
+                                            </div>
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="small keyword-summary">
+                                                総数: <strong>{{ item.keyword_frequency.total_count }}回</strong>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-info show-detail" 
+                                                    data-product-id="{{ item.product.id }}"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#productDetailModal{{ item.product.id }}">
+                                                <i class="fas fa-external-link-square-alt"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- サムネイル比較 -->
+            <div id="thumbnail-view" class="view-content" style="display: none;">
+                <!-- 1段目（1-5位） -->
+                <div class="row g-2 mb-3">
+                    {% for item in products_with_frequency %}
+                    {% if forloop.counter <= 5 %}
+                    <div class="col product-item {% if item.product.is_own_product %}own-shop{% else %}other-shop{% endif %}" style="flex: 1;">
+                        <div class="text-center {% if item.product.is_own_product %}border border-primary border-2{% endif %} d-flex flex-column" style="height: 280px; padding: 0;">
+                            {% if item.product.image_url %}
+                            <a href="{{ item.product.product_url }}" target="_blank" class="d-flex" style="height: 200px;">
+                                <img src="{{ item.product.get_large_image_url }}" 
+                                     class="w-100" 
+                                     alt="{{ item.product.product_name }}" 
+                                     style="object-fit: contain;">
+                            </a>
+                            {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center w-100" style="height: 200px;">
+                                <i class="fas fa-image fa-2x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <div class="p-2" style="background: #f8f9fa; height: 80px; overflow: hidden;">
+                                <div class="fw-bold small">{{ item.product.rank }}位</div>
+                                {% if item.product.is_own_product %}
+                                <span class="badge bg-primary">自店舗</span>
+                                {% endif %}
+                                <div class="small text-muted">¥{{ item.product.price|intcomma }}</div>
+                                <div class="small text-muted" style="font-size: 0.7rem;">{{ item.product.shop_name|truncatechars:12 }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <!-- 2段目（6-10位） -->
+                <div class="row g-2">
+                    {% for item in products_with_frequency %}
+                    {% if forloop.counter > 5 and forloop.counter <= 10 %}
+                    <div class="col product-item {% if item.product.is_own_product %}own-shop{% else %}other-shop{% endif %}" style="flex: 1;">
+                        <div class="text-center {% if item.product.is_own_product %}border border-primary border-2{% endif %} d-flex flex-column" style="height: 280px; padding: 0;">
+                            {% if item.product.image_url %}
+                            <a href="{{ item.product.product_url }}" target="_blank" class="d-flex" style="height: 200px;">
+                                <img src="{{ item.product.get_large_image_url }}" 
+                                     class="w-100" 
+                                     alt="{{ item.product.product_name }}" 
+                                     style="object-fit: contain;">
+                            </a>
+                            {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center w-100" style="height: 200px;">
+                                <i class="fas fa-image fa-2x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <div class="p-2" style="background: #f8f9fa; height: 80px; overflow: hidden;">
+                                <div class="fw-bold small">{{ item.product.rank }}位</div>
+                                {% if item.product.is_own_product %}
+                                <span class="badge bg-primary">自店舗</span>
+                                {% endif %}
+                                <div class="small text-muted">¥{{ item.product.price|intcomma }}</div>
+                                <div class="small text-muted" style="font-size: 0.7rem;">{{ item.product.shop_name|truncatechars:12 }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- メモ機能 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sticky-note"></i> メモ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="memo-display">
+                        {% if result.memo %}
+                        {{ result.memo|linebreaksbr }}
+                        {% else %}
+                        <span class="text-muted">メモはありません</span>
+                        {% endif %}
+                    </div>
+                    <div id="memo-edit" style="display: none;">
+                        <form method="post" action="{% url 'seo_ranking:update_ranking_memo' result.id %}">
+                            {% csrf_token %}
+                            <textarea name="memo" class="form-control mb-2" rows="3">{{ result.memo }}</textarea>
+                            <button type="submit" class="btn btn-primary btn-sm">保存</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleMemoEdit()">キャンセル</button>
+                        </form>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="toggleMemoEdit()">
+                        <i class="fas fa-edit"></i> 編集
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Detail Modals -->
+{% for item in products_with_frequency %}
+<div class="modal fade" id="productDetailModal{{ item.product.id }}" tabindex="-1" aria-labelledby="productDetailModalLabel{{ item.product.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productDetailModalLabel{{ item.product.id }}">
+                    商品詳細 - {{ item.product.rank }}位
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="mb-3">商品名</h6>
+                <p>{{ item.product.product_name }}</p>
+                
+                {% if item.product.catchcopy %}
+                <h6 class="mb-3">キャッチコピー</h6>
+                <p>{{ item.product.catchcopy }}</p>
+                {% endif %}
+                
+                <h6 class="mb-3">商品説明文</h6>
+                <div class="p-3 bg-light">
+                    {{ item.product.product_spec|linebreaksbr }}
+                </div>
+                
+                <h6 class="mb-3 mt-4">キーワード分析</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>キーワード</th>
+                                <th>商品名</th>
+                                <th>キャッチコピー</th>
+                                <th>商品説明文</th>
+                                <th>合計</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if item.keyword_frequency.keyword_details %}
+                                {% for keyword, details in item.keyword_frequency.keyword_details.items %}
+                                <tr>
+                                    <td><strong>{{ keyword }}</strong></td>
+                                    <td>{{ details.name_count }}回</td>
+                                    <td>{{ details.catchcopy_count }}回</td>
+                                    <td>{{ details.spec_count }}回</td>
+                                    <td><strong>{{ details.total }}回</strong></td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                            <tr class="table-secondary">
+                                <td><strong>総計</strong></td>
+                                <td><strong>{{ item.keyword_frequency.name_count }}回</strong></td>
+                                <td><strong>{{ item.keyword_frequency.catchcopy_count }}回</strong></td>
+                                <td><strong>{{ item.keyword_frequency.spec_count }}回</strong></td>
+                                <td><strong>{{ item.keyword_frequency.total_count }}回</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ item.product.product_url }}" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt"></i> 商品ページへ
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 表示切り替え
+document.getElementById('btn-table-view').addEventListener('click', function() {
+    showView('table-view');
+    setActiveButton(this);
+});
+
+document.getElementById('btn-thumbnail-view').addEventListener('click', function() {
+    showView('thumbnail-view');
+    setActiveButton(this);
+});
+
+function showView(viewId) {
+    document.querySelectorAll('.view-content').forEach(view => {
+        view.style.display = 'none';
+    });
+    document.getElementById(viewId).style.display = 'block';
+}
+
+function setActiveButton(activeBtn) {
+    document.querySelectorAll('#btn-table-view, #btn-thumbnail-view').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
+    activeBtn.classList.remove('btn-outline-primary');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.classList.add('active');
+}
+
+
+// メモ編集
+function toggleMemoEdit() {
+    const display = document.getElementById('memo-display');
+    const edit = document.getElementById('memo-edit');
+    
+    if (display.style.display === 'none') {
+        display.style.display = 'block';
+        edit.style.display = 'none';
+    } else {
+        display.style.display = 'none';
+        edit.style.display = 'block';
+    }
+}
+
+
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.ai-analysis-content {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    white-space: pre-wrap;
+}
+
+.table-info {
+    background-color: rgba(13, 202, 240, 0.1);
+}
+
+.keyword-analysis {
+    background-color: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.view-content {
+    min-height: 400px;
+}
+
+#memo-display {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    min-height: 60px;
+}
+</style>
+{% endblock %}

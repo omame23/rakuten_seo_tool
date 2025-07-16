@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}{{ keyword.keyword }}の順位履歴 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-chart-line"></i> {{ keyword.keyword }}の順位履歴
+                </h1>
+                <a href="{% url 'seo_ranking:keyword_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> キーワード一覧へ
+                </a>
+            </div>
+            
+            <!-- 期間フィルタ -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="period" class="form-label">表示期間</label>
+                            <select class="form-select" id="period" name="period" onchange="this.form.submit()">
+                                <option value="7" {% if period == '7' %}selected{% endif %}>過去7日間</option>
+                                <option value="30" {% if period == '30' %}selected{% endif %}>過去30日間</option>
+                                <option value="90" {% if period == '90' %}selected{% endif %}>過去90日間</option>
+                                <option value="365" {% if period == '365' %}selected{% endif %}>過去1年間</option>
+                                <option value="all" {% if period == 'all' %}selected{% endif %}>全期間</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- グラフ表示 -->
+            {% if results %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area"></i> 順位推移グラフ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="rankingChart" height="100"></canvas>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 結果一覧 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history"></i> 検索履歴
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>検索日時</th>
+                                    <th>順位</th>
+                                    <th>総商品数</th>
+                                    <th>メモ</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in page_obj %}
+                                <tr>
+                                    <td>{{ result.checked_at|date:"Y/m/d H:i" }}</td>
+                                    <td>
+                                        {% if result.is_found %}
+                                        <span class="badge bg-primary fs-6">{{ result.rank }}位</span>
+                                        {% else %}
+                                        <span class="badge bg-warning fs-6">圏外</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ result.total_products|default:"-" }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm {% if result.memo %}btn-outline-secondary{% else %}btn-outline-primary{% endif %}" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#memoModal{{ result.id }}">
+                                            {% if result.memo %}
+                                            <i class="fas fa-sticky-note"></i> あり
+                                            {% else %}
+                                            <i class="fas fa-plus"></i> 登録
+                                            {% endif %}
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'seo_ranking:ranking_detail' result.id %}" 
+                                           class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> 詳細
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&period={{ period }}">前へ</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&period={{ period }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&period={{ period }}">次へ</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">検索結果がありません</h5>
+                        <p class="text-muted">このキーワードでまだ検索を実行していません。</p>
+                        <a href="{% url 'seo_ranking:search_keyword' keyword.id %}" class="btn btn-primary">
+                            <i class="fas fa-search"></i> 今すぐ検索
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Memo Modals -->
+{% for result in page_obj %}
+<div class="modal fade" id="memoModal{{ result.id }}" tabindex="-1" aria-labelledby="memoModalLabel{{ result.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memoModalLabel{{ result.id }}">
+                    <i class="fas fa-sticky-note"></i> 
+                    {% if result.memo %}メモ{% else %}メモ登録{% endif %} - {{ result.checked_at|date:"Y/m/d H:i" }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>検索日時:</strong> {{ result.checked_at|date:"Y年m月d日 H:i" }}<br>
+                    <strong>順位:</strong> 
+                    {% if result.is_found %}
+                        {{ result.rank }}位
+                    {% else %}
+                        圏外
+                    {% endif %}
+                </div>
+                
+                {% if result.memo %}
+                <!-- 表示モード -->
+                <div id="memo-display-{{ result.id }}">
+                    <div class="memo-content">
+                        {{ result.memo|linebreaksbr }}
+                    </div>
+                </div>
+                
+                <!-- 編集モード -->
+                <div id="memo-edit-{{ result.id }}" class="d-none">
+                    <form method="post" action="{% url 'seo_ranking:update_ranking_memo' result.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="memo-{{ result.id }}" class="form-label">メモ</label>
+                            <textarea name="memo" id="memo-{{ result.id }}" class="form-control" rows="4">{{ result.memo }}</textarea>
+                        </div>
+                    </form>
+                </div>
+                {% else %}
+                <!-- 新規作成モード -->
+                <div id="memo-create-{{ result.id }}">
+                    <form method="post" action="{% url 'seo_ranking:update_ranking_memo' result.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="memo-create-{{ result.id }}" class="form-label">メモ</label>
+                            <textarea name="memo" id="memo-create-{{ result.id }}" class="form-control" rows="4" placeholder="分析結果や気づいたことを記録してください..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                {% if result.memo %}
+                <!-- 表示モード時のボタン（既存メモ） -->
+                <div id="memo-buttons-display-{{ result.id }}">
+                    <button type="button" class="btn btn-outline-primary" onclick="toggleMemoEdit('{{ result.id }}')">
+                        <i class="fas fa-edit"></i> 編集
+                    </button>
+                    <a href="{% url 'seo_ranking:ranking_detail' result.id %}" class="btn btn-info">
+                        <i class="fas fa-eye"></i> 詳細
+                    </a>
+                </div>
+                
+                <!-- 編集モード時のボタン（既存メモ） -->
+                <div id="memo-buttons-edit-{{ result.id }}" class="d-none">
+                    <button type="button" class="btn btn-success" onclick="saveMemo('{{ result.id }}')">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="toggleMemoEdit('{{ result.id }}')">
+                        <i class="fas fa-times"></i> キャンセル
+                    </button>
+                </div>
+                {% else %}
+                <!-- 新規作成時のボタン -->
+                <div id="memo-buttons-create-{{ result.id }}">
+                    <button type="button" class="btn btn-success" onclick="saveMemoCreate('{{ result.id }}')">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                    <a href="{% url 'seo_ranking:ranking_detail' result.id %}" class="btn btn-info">
+                        <i class="fas fa-eye"></i> 詳細
+                    </a>
+                </div>
+                {% endif %}
+                
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+{% if results %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// グラフデータの準備
+const chartData = {
+    labels: [
+        {% for result in results reversed %}
+        '{{ result.checked_at|date:"m/d" }}',
+        {% endfor %}
+    ],
+    datasets: [{
+        label: '順位',
+        data: [
+            {% for result in results reversed %}
+            {% if result.is_found %}{{ result.rank }}{% else %}null{% endif %},
+            {% endfor %}
+        ],
+        borderColor: 'rgb(75, 192, 192)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        tension: 0.1,
+        spanGaps: true
+    }]
+};
+
+// グラフの設定
+const config = {
+    type: 'line',
+    data: chartData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                reverse: true,
+                beginAtZero: false,
+                min: 1,
+                max: 100,
+                ticks: {
+                    stepSize: 10
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        if (context.parsed.y !== null) {
+                            return context.parsed.y + '位';
+                        }
+                        return '圏外';
+                    }
+                }
+            }
+        }
+    }
+};
+
+// グラフの描画
+const ctx = document.getElementById('rankingChart').getContext('2d');
+new Chart(ctx, config);
+</script>
+{% endif %}
+
+<script>
+// メモ編集機能
+function toggleMemoEdit(resultId) {
+    const displayDiv = document.getElementById(`memo-display-${resultId}`);
+    const editDiv = document.getElementById(`memo-edit-${resultId}`);
+    const displayButtons = document.getElementById(`memo-buttons-display-${resultId}`);
+    const editButtons = document.getElementById(`memo-buttons-edit-${resultId}`);
+    
+    if (displayDiv.classList.contains('d-none')) {
+        // 編集モードから表示モードへ
+        displayDiv.classList.remove('d-none');
+        editDiv.classList.add('d-none');
+        displayButtons.classList.remove('d-none');
+        editButtons.classList.add('d-none');
+    } else {
+        // 表示モードから編集モードへ
+        displayDiv.classList.add('d-none');
+        editDiv.classList.remove('d-none');
+        displayButtons.classList.add('d-none');
+        editButtons.classList.remove('d-none');
+    }
+}
+
+function saveMemo(resultId) {
+    const form = document.querySelector(`#memo-edit-${resultId} form`);
+    if (form) {
+        form.submit();
+    }
+}
+
+function saveMemoCreate(resultId) {
+    const form = document.querySelector(`#memo-create-${resultId} form`);
+    if (form) {
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

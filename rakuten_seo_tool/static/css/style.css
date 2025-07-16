@@ -1,0 +1,189 @@
+/* メインスタイル */
+:root {
+    --primary-color: #BF0000;
+    --secondary-color: #F5F5F5;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #333;
+    background-color: #f8f9fa;
+}
+
+/* ナビゲーションバー */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.3rem;
+    color: #ffffff !important; /* ブランド名の色を濃い白に */
+}
+
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* ナビゲーションリンクの色を濃くする */
+.navbar-nav .nav-link {
+    color: #ffffff !important; /* 薄いグレーから白に変更 */
+    font-weight: 500;
+    opacity: 1; /* 透明度を完全不透明に */
+}
+
+.navbar-nav .nav-link:hover {
+    color: #f0f0f0 !important; /* ホバー時は少し薄くする */
+    opacity: 0.9;
+}
+
+.navbar-nav .nav-link:focus {
+    color: #ffffff !important;
+}
+
+/* ドロップダウントグルの色も調整 */
+.navbar-nav .dropdown-toggle {
+    color: #ffffff !important;
+}
+
+.navbar-nav .dropdown-toggle:hover {
+    color: #f0f0f0 !important;
+}
+
+/* ハンバーガーメニューのトグルボタン */
+.navbar-toggler {
+    border-color: #ffffff;
+}
+
+.navbar-toggler:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* カード */
+.card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* ボタン */
+.btn {
+    border-radius: 5px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #990000;
+    border-color: #990000;
+}
+
+/* フォーム */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(191, 0, 0, 0.25);
+}
+
+/* アラート */
+.alert {
+    border-radius: 5px;
+    border: none;
+}
+
+/* フッター */
+footer {
+    margin-top: auto;
+    border-top: 1px solid #e9ecef;
+}
+
+footer a {
+    color: #6c757d;
+    text-decoration: none;
+}
+
+footer a:hover {
+    color: var(--primary-color);
+}
+
+/* ダッシュボード */
+.dashboard-card {
+    border-left: 4px solid var(--primary-color);
+}
+
+.dashboard-card .card-body {
+    padding: 1.5rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* テーブル */
+.table {
+    background-color: white;
+}
+
+.table thead th {
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: 600;
+}
+
+/* バッジ */
+.badge {
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+}
+
+/* ローディング */
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1em;
+}
+
+/* 商品名・キャッチコピーセル */
+.product-name-cell {
+    max-width: 400px !important; /* 250pxから400pxに拡張 */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn {
+        font-size: 0.9rem;
+    }
+    
+    .product-name-cell {
+        max-width: 250px !important; /* モバイルでは250px */
+    }
+}

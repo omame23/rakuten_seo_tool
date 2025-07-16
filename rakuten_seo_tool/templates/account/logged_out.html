@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}ログアウト完了 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-4x text-success"></i>
+                    </div>
+                    
+                    <h2 class="mb-4 text-success">ログアウト完了</h2>
+                    
+                    <p class="mb-4">
+                        ログアウトが完了しました。<br>
+                        ご利用いただき、ありがとうございました。
+                    </p>
+                    
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>セキュリティ確保</strong><br>
+                        セッションが安全に終了されました。
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="{% url 'account_login' %}" class="btn btn-primary btn-lg me-md-2">
+                            <i class="fas fa-sign-in-alt"></i> 再ログイン
+                        </a>
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-home"></i> トップページ
+                        </a>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row text-center">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <i class="fas fa-user-plus fa-2x text-primary mb-2"></i>
+                                <h6>新規登録</h6>
+                                <p class="text-muted small">
+                                    <a href="{% url 'account_signup' %}" class="text-decoration-none">
+                                        初月無料で開始
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <i class="fas fa-question-circle fa-2x text-info mb-2"></i>
+                                <h6>サポート</h6>
+                                <p class="text-muted small">
+                                    <a href="/contact/" class="text-decoration-none">
+                                        お問い合わせ
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <p class="text-muted">
+                    <i class="fas fa-clock"></i> 
+                    またのご利用をお待ちしております
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        border: none;
+        border-radius: 15px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, var(--primary-color), #990000);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(191, 0, 0, 0.4);
+    }
+    
+    .btn-outline-secondary {
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(108, 117, 125, 0.2);
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+    
+    .fa-check-circle {
+        animation: checkmark 1s ease-in-out;
+    }
+    
+    @keyframes checkmark {
+        0% { 
+            transform: scale(0);
+            opacity: 0;
+        }
+        50% { 
+            transform: scale(1.2);
+            opacity: 0.8;
+        }
+        100% { 
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    .card-body {
+        animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+        0% {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+        100% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // フェードイン効果
+    $('.card').hide().fadeIn(1000);
+    
+    // 自動リダイレクト（オプション）
+    // setTimeout(() => {
+    //     window.location.href = "{% url 'home' %}";
+    // }, 10000); // 10秒後にトップページへ
+    
+    // ボタンのホバー効果
+    $('.btn').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+});
+</script>
+{% endblock %}

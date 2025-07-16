@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(python manage.py:*)",
+      "Bash(ls:*)",
+      "Bash(python test:*)",
+      "Bash(python3:*)",
+      "Bash(rm:*)",
+      "Bash(python:*)",
+      "Bash(DJANGO_SETTINGS_MODULE=inspice_seo_tool.settings python -c \"\nimport django\ndjango.setup()\nfrom seo_ranking.rpp_scraper import scrape_rpp_ranking\nresult = scrape_rpp_ranking(''ペットブランケット'', ''stepmarket'', max_pages=1)\nprint(''検索結果:'')\nprint(f''成功: {result[\"\"success\"\"]}'')\nprint(f''総広告数: {result[\"\"total_ads\"\"]}'')\nprint(f''自社順位: {result[\"\"rank\"\"]}'')\nprint(f''発見: {result[\"\"is_found\"\"]}'')\nprint()\nif result[''ads'']:\n    print(''検出されたRPP広告:'')\n    for i, ad in enumerate(result[''ads''], 1):\n        print(f''{i}. {ad[\"\"product_name\"\"][:50]}'')\n        print(f''   店舗: {ad[\"\"shop_name\"\"]}'')\n        print(f''   位置: {ad[\"\"position_on_page\"\"]}'')\n        print(f''   価格: {ad[\"\"price\"\"]}円'')\n        if ''stepmarket'' in ad[\"\"shop_name\"\"].lower():\n            print(''   ★ stepmarket商品を発見!'')\n        print()\nelse:\n    print(''RPP広告が検出されませんでした'')\n\")",
+      "Bash(DJANGO_SETTINGS_MODULE=inspice_seo_tool.settings python -c \"\nimport django\ndjango.setup()\nfrom seo_ranking.rpp_scraper import scrape_rpp_ranking\nresult = scrape_rpp_ranking(''ペットブランケット'', ''stepmarket'', max_pages=1)\nprint(''検索結果:'')\nprint(f''成功: {result[\"\"success\"\"]}'')\nprint(f''総広告数: {result[\"\"total_ads\"\"]}'')\nprint(f''自社順位: {result[\"\"rank\"\"]}'')\nprint(f''発見: {result[\"\"is_found\"\"]}'')\nprint()\nif result[''ads'']:\n    print(''検出されたRPP広告:'')\n    for i, ad in enumerate(result[''ads''], 1):\n        print(f''{i}. {ad[\"\"product_name\"\"][:50]}'')\n        print(f''   店舗: {ad[\"\"shop_name\"\"]}'')\n        print(f''   位置: {ad[\"\"position_on_page\"\"]}'')\n        print(f''   価格: {ad[\"\"price\"\"]}円'')\n        if ''stepmarket'' in ad[\"\"shop_name\"\"].lower():\n            print(''   ★ stepmarket商品を発見!'')\n        print()\nelse:\n    print(''RPP広告が検出されませんでした'')\n\")",
+      "Bash(DJANGO_SETTINGS_MODULE=inspice_seo_tool.settings python -c \"\nimport django\ndjango.setup()\nfrom seo_ranking.rpp_scraper import scrape_rpp_ranking\nresult = scrape_rpp_ranking(''ペットブランケット'', ''stepmarket'', max_pages=1)\nprint(''検索結果:'')\nprint(f''成功: {result[\"\"success\"\"]}'')\nprint(f''総広告数: {result[\"\"total_ads\"\"]}'')\nprint(f''自社順位: {result[\"\"rank\"\"]}'')\nprint(f''発見: {result[\"\"is_found\"\"]}'')\nprint()\nif result[''ads'']:\n    print(''検出されたRPP広告（最初の5件）:'')\n    for i, ad in enumerate(result[''ads''][:5], 1):\n        print(f''{i}. {ad[\"\"product_name\"\"][:50]}'')\n        print(f''   店舗: {ad[\"\"shop_name\"\"]}'')\n        print(f''   価格: {ad[\"\"price\"\"]}円'')\n        if ''stepmarket'' in ad[\"\"shop_name\"\"].lower():\n            print(''   ★ stepmarket商品を発見!'')\n        print()\nelse:\n    print(''RPP広告が検出されませんでした'')\n\")",
+      "Bash(DJANGO_SETTINGS_MODULE=inspice_seo_tool.settings python -c \"\nimport django\ndjango.setup()\nfrom seo_ranking.rpp_scraper import scrape_rpp_ranking\nresult = scrape_rpp_ranking(''ペットブランケット'', ''stepmarket'', max_pages=1)\nprint(''検索結果:'')\nprint(f''成功: {result[\"\"success\"\"]}'')\nprint(f''総広告数: {result[\"\"total_ads\"\"]}'')\nprint(f''自社順位: {result[\"\"rank\"\"]}'')\nprint(f''発見: {result[\"\"is_found\"\"]}'')\nprint()\nif result[''ads'']:\n    print(''検出されたRPP広告（最初の5件）:'')\n    for i, ad in enumerate(result[''ads''][:5], 1):\n        print(f''{i}. {ad[\"\"product_name\"\"][:50]}'')\n        print(f''   店舗: {ad[\"\"shop_name\"\"]}'')\n        print(f''   価格: {ad[\"\"price\"\"]}円'')\n        if ''stepmarket'' in ad[\"\"shop_name\"\"].lower():\n            print(''   ★ stepmarket商品を発見!'')\n        print()\nelse:\n    print(''RPP広告が検出されませんでした'')\n\")",
+      "Bash(pip3 list:*)",
+      "Bash(find:*)",
+      "Bash(pip3 install:*)",
+      "Bash(pip install:*)",
+      "Bash(for i in {1..5})",
+      "Bash(do echo \"チェック $i:\")",
+      "Bash(done)",
+      "Bash(timeout 60 python manage.py:*)",
+      "Bash(export:*)",
+      "Bash(kill:*)",
+      "Bash(cat:*)",
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)",
+      "Bash(pkill:*)",
+      "Bash(true)"
+    ],
+    "deny": []
+  }
+}

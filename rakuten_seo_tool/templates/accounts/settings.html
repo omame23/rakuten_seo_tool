@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}アカウント設定 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- サイドバー -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cog"></i> 設定メニュー
+                    </h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="#account-info" class="list-group-item list-group-item-action active" data-bs-toggle="tab">
+                        <i class="fas fa-user"></i> アカウント情報
+                    </a>
+                    <a href="#password-change" class="list-group-item list-group-item-action" data-bs-toggle="tab">
+                        <i class="fas fa-lock"></i> パスワード変更
+                    </a>
+                    <a href="#auto-search-settings" class="list-group-item list-group-item-action" data-bs-toggle="tab">
+                        <i class="fas fa-clock"></i> 自動検索設定
+                    </a>
+                    {% if user.is_master %}
+                    <a href="#master-settings" class="list-group-item list-group-item-action" data-bs-toggle="tab">
+                        <i class="fas fa-crown"></i> マスター設定
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="tab-content">
+                <!-- アカウント情報タブ -->
+                <div class="tab-pane fade show active" id="account-info">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user"></i> アカウント情報
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{% url 'accounts:settings' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_type" value="account_info">
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="company_name" class="form-label">会社名 <span class="text-danger">*</span></label>
+                                        <input type="text" name="company_name" id="company_name" class="form-control" 
+                                               value="{{ user.company_name }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="contact_name" class="form-label">担当者名 <span class="text-danger">*</span></label>
+                                        <input type="text" name="contact_name" id="contact_name" class="form-control" 
+                                               value="{{ user.contact_name }}" required>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">メールアドレス</label>
+                                        <input type="email" id="email" class="form-control" value="{{ user.email }}" disabled>
+                                        <small class="form-text text-muted">メールアドレスの変更はサポートまでお問い合わせください</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="phone_number" class="form-label">電話番号 <span class="text-danger">*</span></label>
+                                        <input type="tel" name="phone_number" id="phone_number" class="form-control" 
+                                               value="{{ user.phone_number }}" required pattern="[0-9\-]+">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="rakuten_shop_id" class="form-label">
+                                        楽天店舗ID 
+                                        {% if not user.is_master %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {% if user.is_master %}
+                                        <input type="text" name="rakuten_shop_id" id="rakuten_shop_id" class="form-control" 
+                                               value="{{ user.rakuten_shop_id }}" placeholder="マスターアカウントは任意">
+                                        <small class="form-text text-muted">マスターアカウントは楽天店舗IDの設定は任意です</small>
+                                    {% else %}
+                                        <input type="text" name="rakuten_shop_id" id="rakuten_shop_id" class="form-control" 
+                                               value="{{ user.rakuten_shop_id }}" required>
+                                        <small class="form-text text-muted">契約している楽天店舗IDを入力してください</small>
+                                    {% endif %}
+                                </div>
+
+                                {% if user.is_master %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-crown"></i>
+                                    <strong>マスターアカウント</strong><br>
+                                    全機能・全店舗データにアクセス可能です。
+                                </div>
+                                {% else %}
+                                <div class="alert alert-secondary">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>サブスクリプション状態：</strong> {{ user.get_subscription_status_display }}
+                                </div>
+                                {% endif %}
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> 保存
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- パスワード変更タブ -->
+                <div class="tab-pane fade" id="password-change">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-lock"></i> パスワード変更
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{% url 'accounts:settings' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_type" value="password_change">
+                                
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">現在のパスワード <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" name="current_password" id="current_password" class="form-control" required>
+                                        <button class="btn btn-outline-secondary password-toggle" type="button">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="new_password1" class="form-label">新しいパスワード <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" name="new_password1" id="new_password1" class="form-control" 
+                                               required minlength="8">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <small class="form-text text-muted">8文字以上で設定してください</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="new_password2" class="form-label">新しいパスワード（確認） <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="password" name="new_password2" id="new_password2" class="form-control" 
+                                               required minlength="8">
+                                        <button class="btn btn-outline-secondary password-toggle" type="button">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>注意：</strong>パスワードを変更すると、他のデバイスからは再ログインが必要になります。
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-key"></i> パスワードを変更
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 自動検索設定タブ -->
+                <div class="tab-pane fade" id="auto-search-settings">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clock"></i> 自動検索設定
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{% url 'accounts:settings' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_type" value="auto_search_settings">
+                                
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="auto_search_enabled" 
+                                               id="auto_search_enabled" {% if user.auto_search_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="auto_search_enabled">
+                                            自動検索を有効にする
+                                        </label>
+                                    </div>
+                                    <small class="form-text text-muted">有効にすると、毎日指定した時間に自動でキーワード順位を確認します</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="auto_search_time" class="form-label">自動検索実行時間</label>
+                                    <input type="time" name="auto_search_time" id="auto_search_time" class="form-control" 
+                                           value="{{ user.auto_search_time|time:'H:i' }}">
+                                    <small class="form-text text-muted">毎日この時間に自動検索を実行します（24時間形式）</small>
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>自動検索について</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li>アクティブなキーワードのみが検索対象になります</li>
+                                        <li>楽天APIの負荷軽減のため、キーワード間に1秒の間隔を設けます</li>
+                                        <li>検索結果は通常の検索履歴に記録されます</li>
+                                        <li>エラーが発生した場合、翌日に再試行されます</li>
+                                    </ul>
+                                </div>
+
+                                {% if user.last_bulk_search_date %}
+                                <div class="alert alert-secondary">
+                                    <i class="fas fa-calendar"></i>
+                                    <strong>最終一括検索日：</strong> {{ user.last_bulk_search_date|date:'Y年m月d日' }}
+                                </div>
+                                {% endif %}
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> 設定を保存
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- マスター設定タブ（マスターアカウントのみ） -->
+                {% if user.is_master %}
+                <div class="tab-pane fade" id="master-settings">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-crown"></i> マスター設定
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>マスターアカウント権限</strong><br>
+                                以下の特別な権限を持っています：
+                                <ul class="mb-0 mt-2">
+                                    <li>全店舗データへのアクセス</li>
+                                    <li>任意の楽天店舗IDでの検索</li>
+                                    <li>楽天店舗ID重複制限の除外</li>
+                                    <li>サブスクリプション制限なし</li>
+                                </ul>
+                            </div>
+                            
+                            <h6>アカウント統計</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h5 class="text-primary">{{ total_users }}</h5>
+                                            <small>総ユーザー数</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h5 class="text-success">{{ active_users }}</h5>
+                                            <small>アクティブユーザー</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h5 class="text-warning">{{ trial_users }}</h5>
+                                            <small>トライアルユーザー</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// パスワード表示/非表示切り替え
+document.querySelectorAll('.password-toggle').forEach(function(button) {
+    button.addEventListener('click', function() {
+        const input = this.parentElement.querySelector('input');
+        const icon = this.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    });
+});
+
+// パスワード確認
+document.getElementById('new_password2').addEventListener('input', function() {
+    const password1 = document.getElementById('new_password1').value;
+    const password2 = this.value;
+    
+    if (password2 && password1 !== password2) {
+        this.setCustomValidity('パスワードが一致しません');
+    } else {
+        this.setCustomValidity('');
+    }
+});
+
+// フォーム送信時の確認
+document.querySelectorAll('form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        const formType = this.querySelector('input[name="form_type"]').value;
+        const submitBtn = this.querySelector('button[type="submit"]');
+        
+        if (formType === 'password_change') {
+            if (!confirm('パスワードを変更しますか？他のデバイスからは再ログインが必要になります。')) {
+                e.preventDefault();
+                return;
+            }
+        }
+        
+        // ローディング状態にする
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 処理中...';
+        
+        // エラーがあった場合に備えて、3秒後にボタンを復活させる
+        setTimeout(function() {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }, 3000);
+    });
+});
+</script>
+{% endblock %}

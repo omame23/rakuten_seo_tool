@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}RPP全店舗データ - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- ヘッダー -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-globe"></i> RPP全店舗データ
+                </h1>
+                <a href="{% url 'seo_ranking:dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> ダッシュボードに戻る
+                </a>
+            </div>
+            
+            <!-- 統計情報 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">総キーワード数</h6>
+                            <p class="stat-number mb-0">{{ total_keywords }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">有効キーワード数</h6>
+                            <p class="stat-number mb-0">{{ active_keywords }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">対象店舗数</h6>
+                            <p class="stat-number mb-0">{{ total_shops }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted">稼働率</h6>
+                            <p class="stat-number mb-0">
+                                {% if total_keywords > 0 %}
+                                {% widthratio active_keywords total_keywords 100 as rate %}
+                                {{ rate }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 検索フィルタ -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="search" class="form-label">キーワード・会社名検索</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="キーワードまたは会社名で検索">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="shop" class="form-label">店舗ID</label>
+                            <select class="form-select" id="shop" name="shop">
+                                <option value="">すべて</option>
+                                {% for shop_id in shop_list %}
+                                <option value="{{ shop_id }}" {% if shop_filter == shop_id %}selected{% endif %}>{{ shop_id }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="active" class="form-label">状態</label>
+                            <select class="form-select" id="active" name="active">
+                                <option value="">すべて</option>
+                                <option value="true" {% if active_filter == 'true' %}selected{% endif %}>有効</option>
+                                <option value="false" {% if active_filter == 'false' %}selected{% endif %}>無効</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="period" class="form-label">登録期間</label>
+                            <select class="form-select" id="period" name="period">
+                                <option value="7" {% if period == '7' %}selected{% endif %}>過去7日</option>
+                                <option value="30" {% if period == '30' %}selected{% endif %}>過去30日</option>
+                                <option value="90" {% if period == '90' %}selected{% endif %}>過去90日</option>
+                                <option value="all" {% if period == 'all' %}selected{% endif %}>すべて</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> 検索
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-1">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'seo_ranking:rpp_all_data' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- キーワード一覧 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>キーワード</th>
+                                    <th>店舗ID</th>
+                                    <th>会社名</th>
+                                    <th>状態</th>
+                                    <th>最新順位</th>
+                                    <th>対象商品</th>
+                                    <th>登録日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for keyword in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ keyword.keyword }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ keyword.rakuten_shop_id }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ keyword.user.company_name|default:"未設定" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if keyword.is_active %}
+                                        <span class="badge bg-success">有効</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">無効</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% with latest_result=keyword.rpp_results.first %}
+                                        {% if latest_result %}
+                                            {% if latest_result.is_found %}
+                                            <span class="badge bg-primary">{{ latest_result.rank }}位</span>
+                                            <br><small class="text-muted">{{ latest_result.checked_at|date:"m/d H:i" }}</small>
+                                            {% else %}
+                                            <span class="badge bg-warning">圏外</span>
+                                            <br><small class="text-muted">{{ latest_result.checked_at|date:"m/d H:i" }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                        <span class="text-muted">未実行</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        {% if keyword.target_product_url %}
+                                        <span class="badge bg-info">有り</span>
+                                        {% else %}
+                                        <span class="text-muted">無し</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ keyword.created_at|date:"Y/m/d" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-primary" 
+                                                    onclick="executeRPPSearch({{ keyword.id }}, '{{ keyword.keyword }}')">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                            <a href="{% url 'seo_ranking:rpp_results' keyword.id %}" 
+                                               class="btn btn-info">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                            {% if keyword.target_product_url %}
+                                            <a href="{{ keyword.target_product_url }}" target="_blank"
+                                               class="btn btn-success">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&shop={{ shop_filter }}&active={{ active_filter }}&period={{ period }}">前へ</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&search={{ search_query }}&shop={{ shop_filter }}&active={{ active_filter }}&period={{ period }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&shop={{ shop_filter }}&active={{ active_filter }}&period={{ period }}">次へ</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-globe fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">データがありません</h5>
+                        <p class="text-muted">条件に合致するRPPキーワードがありません。</p>
+                        <a href="{% url 'seo_ranking:rpp_all_data' %}" class="btn btn-primary">
+                            <i class="fas fa-undo"></i> フィルターをリセット
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// RPP検索実行
+function executeRPPSearch(keywordId, keywordName) {
+    if (!confirm(`RPPキーワード「${keywordName}」の検索を実行しますか？\n処理には時間がかかる場合があります。`)) {
+        return;
+    }
+    
+    // ボタンを無効化
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    // AJAX リクエスト
+    fetch(`/seo/rpp/search/${keywordId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                          document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 成功メッセージ
+            alert(`検索完了: ${data.message}`);
+            location.reload();
+        } else {
+            alert(`エラーが発生しました: ${data.message}`);
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('通信エラーが発生しました');
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    });
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        transition: transform 0.2s;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--bs-primary);
+    }
+</style>
+{% endblock %}

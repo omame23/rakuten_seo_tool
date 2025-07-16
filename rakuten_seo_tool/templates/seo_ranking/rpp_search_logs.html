@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}RPP検索ログ - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-history"></i> RPP検索ログ
+                </h1>
+                <a href="{% url 'seo_ranking:rpp_keyword_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> RPPキーワード一覧に戻る
+                </a>
+            </div>
+            
+            <!-- フィルタ -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="success" class="form-label">実行結果</label>
+                            <select class="form-select" id="success" name="success">
+                                <option value="">すべて</option>
+                                <option value="true" {% if success_filter == 'true' %}selected{% endif %}>成功</option>
+                                <option value="false" {% if success_filter == 'false' %}selected{% endif %}>失敗</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="period" class="form-label">期間</label>
+                            <select class="form-select" id="period" name="period">
+                                <option value="7" {% if period == '7' %}selected{% endif %}>過去7日</option>
+                                <option value="30" {% if period == '30' %}selected{% endif %}>過去30日</option>
+                                <option value="all" {% if period == 'all' %}selected{% endif %}>すべて</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> フィルター
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'seo_ranking:rpp_search_logs' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo"></i> リセット
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- ログ一覧 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>実行日時</th>
+                                    <th>キーワード</th>
+                                    <th>検索ページ数</th>
+                                    <th>広告数</th>
+                                    <th>実行時間</th>
+                                    <th>結果</th>
+                                    <th>エラー詳細</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ log.created_at|date:"Y/m/d H:i" }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold">{{ log.keyword }}</span>
+                                    </td>
+                                    <td>
+                                        {{ log.pages_checked }}ページ
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ log.ads_found }}広告</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ log.execution_time|floatformat:2 }}秒</small>
+                                    </td>
+                                    <td>
+                                        {% if log.success %}
+                                        <span class="badge bg-success">成功</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">失敗</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.error_details %}
+                                        <small class="text-danger">{{ log.error_details|truncatechars:50 }}</small>
+                                        {% else %}
+                                        <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&success={{ success_filter }}&period={{ period }}">前へ</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&success={{ success_filter }}&period={{ period }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&success={{ success_filter }}&period={{ period }}">次へ</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">RPP検索ログがありません</h5>
+                        <p class="text-muted">RPP検索を実行するとログが表示されます。</p>
+                        <a href="{% url 'seo_ranking:rpp_keyword_list' %}" class="btn btn-primary">
+                            <i class="fas fa-search"></i> RPP検索を実行
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

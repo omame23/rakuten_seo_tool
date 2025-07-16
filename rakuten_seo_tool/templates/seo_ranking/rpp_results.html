@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}RPP順位履歴 - {{ keyword.keyword }} - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- ヘッダー -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-chart-line"></i> RPP順位履歴
+                </h1>
+                <a href="{% url 'seo_ranking:rpp_keyword_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> RPPキーワード一覧に戻る
+                </a>
+            </div>
+            
+            <!-- キーワード情報 -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4 class="mb-3">
+                                <i class="fas fa-key"></i> {{ keyword.keyword }}
+                            </h4>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1">
+                                        <strong>店舗ID:</strong> 
+                                        <span class="badge bg-secondary">{{ keyword.rakuten_shop_id }}</span>
+                                    </p>
+                                    <p class="mb-1">
+                                        <strong>状態:</strong> 
+                                        {% if keyword.is_active %}
+                                        <span class="badge bg-success">有効</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">無効</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1">
+                                        <strong>登録日:</strong> {{ keyword.created_at|date:"Y/m/d H:i" }}
+                                    </p>
+                                    {% if keyword.target_product_url %}
+                                    <p class="mb-1">
+                                        <strong>対象商品:</strong> 
+                                        <a href="{{ keyword.target_product_url }}" target="_blank" class="text-primary">
+                                            <i class="fas fa-external-link-alt"></i> 商品ページ
+                                        </a>
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-primary mb-2" 
+                                    onclick="executeRPPSearch({{ keyword.id }}, '{{ keyword.keyword }}')">
+                                <i class="fas fa-search"></i> 再検索
+                            </button>
+                            <div>
+                                {% with latest_result=keyword.rpp_results.first %}
+                                {% if latest_result %}
+                                    {% if latest_result.is_found %}
+                                    <h3 class="text-primary mb-0">{{ latest_result.rank }}位</h3>
+                                    <small class="text-muted">{{ latest_result.checked_at|date:"m/d H:i" }}</small>
+                                    {% else %}
+                                    <h3 class="text-warning mb-0">圏外</h3>
+                                    <small class="text-muted">{{ latest_result.checked_at|date:"m/d H:i" }}</small>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">未実行</span>
+                                {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- フィルタ -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="period" class="form-label">期間</label>
+                            <select class="form-select" id="period" name="period">
+                                <option value="7" {% if period == '7' %}selected{% endif %}>過去7日</option>
+                                <option value="30" {% if period == '30' %}selected{% endif %}>過去30日</option>
+                                <option value="90" {% if period == '90' %}selected{% endif %}>過去90日</option>
+                                <option value="365" {% if period == '365' %}selected{% endif %}>過去365日</option>
+                                <option value="all" {% if period == 'all' %}selected{% endif %}>すべて</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label>&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> フィルター
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 結果一覧 -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>実行日時</th>
+                                    <th>順位</th>
+                                    <th>広告数</th>
+                                    <th>検索ページ数</th>
+                                    <th>ステータス</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ result.checked_at|date:"Y/m/d H:i" }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if result.is_found %}
+                                        <span class="badge bg-primary fs-6">{{ result.rank }}位</span>
+                                        {% else %}
+                                        <span class="badge bg-warning fs-6">圏外</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ result.total_ads }}広告</span>
+                                    </td>
+                                    <td>
+                                        {{ result.pages_checked }}ページ
+                                    </td>
+                                    <td>
+                                        {% if result.error_message %}
+                                        <span class="badge bg-danger">エラー</span>
+                                        <br><small class="text-muted">{{ result.error_message|truncatechars:30 }}</small>
+                                        {% else %}
+                                        <span class="badge bg-success">成功</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'seo_ranking:rpp_detail' result.id %}" 
+                                               class="btn btn-info">
+                                                <i class="fas fa-eye"></i> 詳細
+                                            </a>
+                                            <a href="{% url 'seo_ranking:export_rpp_csv' result.id %}" 
+                                               class="btn btn-success">
+                                                <i class="fas fa-download"></i> CSV
+                                            </a>
+                                            <button type="button" class="btn {% if result.memo %}btn-success{% else %}btn-warning{% endif %}" 
+                                                    onclick="openMemoModal({{ result.id }}, '{{ result.memo|default:''|escapejs }}')"
+                                                    title="{% if result.memo %}メモあり: {{ result.memo|truncatechars:50 }}{% else %}メモを追加{% endif %}">
+                                                <i class="fas fa-sticky-note"></i> メモ{% if result.memo %} ✓{% endif %}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- ページネーション -->
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&period={{ period }}">前へ</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}&period={{ period }}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&period={{ period }}">次へ</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">RPP順位履歴がありません</h5>
+                        <p class="text-muted">まずはRPP検索を実行してください。</p>
+                        <button type="button" class="btn btn-primary" 
+                                onclick="executeRPPSearch({{ keyword.id }}, '{{ keyword.keyword }}')">
+                            <i class="fas fa-search"></i> RPP検索を実行
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- メモ編集モーダル -->
+<div class="modal fade" id="memoModal" tabindex="-1" aria-labelledby="memoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memoModalLabel">
+                    <i class="fas fa-sticky-note"></i> メモ編集
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="memoForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="memoText" class="form-label">メモ内容</label>
+                        <textarea class="form-control" id="memoText" rows="8" 
+                                  placeholder="CPC変更履歴、改善履歴などを記録してください..."></textarea>
+                        <div class="form-text">
+                            例: CPC 100円→120円に変更 (2025/07/12)<br>
+                            改善施策: タイトル変更、商品画像追加
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> キャンセル
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentResultId = null;
+
+// メモモーダルを開く
+function openMemoModal(resultId, currentMemo) {
+    currentResultId = resultId;
+    document.getElementById('memoText').value = currentMemo;
+    const modal = new bootstrap.Modal(document.getElementById('memoModal'));
+    modal.show();
+}
+
+// メモ保存
+document.getElementById('memoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!currentResultId) {
+        alert('エラー: 結果IDが取得できません');
+        return;
+    }
+    
+    const memoText = document.getElementById('memoText').value;
+    const submitButton = this.querySelector('button[type="submit"]');
+    const originalContent = submitButton.innerHTML;
+    
+    // ボタンを無効化
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中';
+    
+    // AJAX リクエスト
+    fetch(`/seo/rpp/memo/update/${currentResultId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                          document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+        },
+        body: JSON.stringify({
+            memo: memoText
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // モーダルを閉じる
+            const modal = bootstrap.Modal.getInstance(document.getElementById('memoModal'));
+            modal.hide();
+            
+            // 成功メッセージ
+            alert('メモを保存しました');
+            
+            // ページをリロード（メモボタンの表示更新のため）
+            location.reload();
+        } else {
+            alert(`エラーが発生しました: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('通信エラーが発生しました');
+    })
+    .finally(() => {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalContent;
+    });
+});
+
+// RPP検索実行
+function executeRPPSearch(keywordId, keywordName) {
+    if (!confirm(`RPPキーワード「${keywordName}」の検索を実行しますか？\n処理には時間がかかる場合があります。`)) {
+        return;
+    }
+    
+    // ボタンを無効化
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中';
+    
+    // AJAX リクエスト
+    fetch(`/seo/rpp/search/${keywordId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                          document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(`エラーが発生しました: ${data.message}`);
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('通信エラーが発生しました');
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    });
+}
+</script>
+{% endblock %}

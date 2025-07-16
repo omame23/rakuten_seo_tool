@@ -1,0 +1,1 @@
+{% load account %}{% user_display user as user_display %}楽天SEO対策ツール - メールアドレス認証のお願い

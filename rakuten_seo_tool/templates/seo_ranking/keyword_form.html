@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas {% if is_edit %}fa-edit{% else %}fa-plus{% endif %}"></i> {{ title }}
+                        </h3>
+                        {% if not is_edit %}
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% if bulk_mode %}
+                            <input type="radio" class="btn-check" name="input_mode" id="single_mode_toggle">
+                            <label class="btn btn-outline-primary" for="single_mode_toggle">単体登録</label>
+                            
+                            <input type="radio" class="btn-check" name="input_mode" id="bulk_mode" checked>
+                            <label class="btn btn-outline-primary" for="bulk_mode">一括登録</label>
+                            {% else %}
+                            <input type="radio" class="btn-check" name="input_mode" id="single_mode" checked>
+                            <label class="btn btn-outline-primary" for="single_mode">単体登録</label>
+                            
+                            <input type="radio" class="btn-check" name="input_mode" id="bulk_mode_toggle">
+                            <label class="btn btn-outline-primary" for="bulk_mode_toggle">一括登録</label>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if bulk_mode %}
+                        <div class="mb-3">
+                            <label for="{{ form.keywords.id_for_label }}" class="form-label">
+                                {{ form.keywords.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.keywords }}
+                            {% if form.keywords.help_text %}
+                            <div class="form-text">{{ form.keywords.help_text }}</div>
+                            {% endif %}
+                            {% if form.keywords.errors %}
+                            <div class="text-danger">
+                                {% for error in form.keywords.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="mb-3">
+                            <label for="{{ form.keyword.id_for_label }}" class="form-label">
+                                {{ form.keyword.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.keyword }}
+                            {% if form.keyword.help_text %}
+                            <div class="form-text">{{ form.keyword.help_text }}</div>
+                            {% endif %}
+                            {% if form.keyword.errors %}
+                            <div class="text-danger">
+                                {% for error in form.keyword.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if user.is_master %}
+                        <div class="mb-3">
+                            <label for="{{ form.rakuten_shop_id.id_for_label }}" class="form-label">
+                                {{ form.rakuten_shop_id.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.rakuten_shop_id }}
+                            {% if form.rakuten_shop_id.help_text %}
+                            <div class="form-text">{{ form.rakuten_shop_id.help_text }}</div>
+                            {% endif %}
+                            {% if form.rakuten_shop_id.errors %}
+                            <div class="text-danger">
+                                {% for error in form.rakuten_shop_id.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        {{ form.rakuten_shop_id }}
+                        <div class="mb-3">
+                            <div class="alert alert-secondary" role="alert">
+                                <i class="fas fa-lock"></i>
+                                <strong>楽天店舗ID:</strong> {{ user.rakuten_shop_id }}
+                                <br>
+                                <small class="text-muted">契約店舗IDが自動的に設定されます</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.target_product_url.id_for_label }}" class="form-label">
+                                {{ form.target_product_url.label }}
+                            </label>
+                            {{ form.target_product_url }}
+                            {% if form.target_product_url.help_text %}
+                            <div class="form-text">{{ form.target_product_url.help_text }}</div>
+                            {% endif %}
+                            {% if form.target_product_url.errors %}
+                            <div class="text-danger">
+                                {% for error in form.target_product_url.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    {{ form.is_active.label }}
+                                </label>
+                            </div>
+                            {% if form.is_active.help_text %}
+                            <div class="form-text">{{ form.is_active.help_text }}</div>
+                            {% endif %}
+                            {% if form.is_active.errors %}
+                            <div class="text-danger">
+                                {% for error in form.is_active.errors %}
+                                <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>注意事項:</strong>
+                            <ul class="mb-0 mt-2">
+                                {% if bulk_mode %}
+                                <li>改行で区切って複数キーワードを一括登録できます（最大50個）。</li>
+                                {% endif %}
+                                <li>検索は楽天市場の標準検索を使用し、300位まで確認します。</li>
+                                <li>店舗IDは必須です。楽天RMSで確認してください。</li>
+                                <li>商品URLを指定すると、より正確な判定が可能です。</li>
+                                <li>有効にチェックすると、自動検索の対象になります。</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'seo_ranking:keyword_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ title }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// フォーム送信時の確認
+document.querySelector('form').addEventListener('submit', function(e) {
+    const button = e.target.querySelector('button[type="submit"]');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 処理中...';
+    button.disabled = true;
+});
+
+{% if user.is_master %}
+// 楽天店舗IDの検証（マスターアカウントのみ）
+const shopIdField = document.getElementById('{{ form.rakuten_shop_id.id_for_label }}');
+if (shopIdField) {
+    shopIdField.addEventListener('blur', function() {
+        const value = this.value.trim();
+        if (value && !/^[a-zA-Z0-9_-]+$/.test(value)) {
+            this.classList.add('is-invalid');
+            const feedback = this.nextElementSibling;
+            if (feedback && feedback.classList.contains('invalid-feedback')) {
+                feedback.textContent = '楽天店舗IDは英数字、ハイフン、アンダースコアのみ使用可能です。';
+            }
+        } else {
+            this.classList.remove('is-invalid');
+        }
+    });
+}
+{% endif %}
+
+// フォーム切り替え機能（編集モードでは無効）
+{% if not is_edit %}
+    {% if bulk_mode %}
+    document.getElementById('single_mode_toggle').addEventListener('change', function() {
+        if (this.checked) {
+            // 単体登録モードに切り替え
+            window.location.href = '{% url "seo_ranking:keyword_create" %}';
+        }
+    });
+    {% else %}
+    document.getElementById('bulk_mode_toggle').addEventListener('change', function() {
+        if (this.checked) {
+            // 一括登録モードに切り替え
+            window.location.href = '{% url "seo_ranking:keyword_bulk_create" %}';
+        }
+    });
+    {% endif %}
+{% endif %}
+</script>
+{% endblock %}

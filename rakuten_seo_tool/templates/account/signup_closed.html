@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}新規登録一時停止中 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-user-times fa-4x text-warning"></i>
+                    </div>
+                    
+                    <h2 class="mb-4">新規登録を一時停止中です</h2>
+                    
+                    <p class="mb-4">
+                        申し訳ございませんが、現在新規登録を一時的に停止しております。<br>
+                        サービス再開までしばらくお待ちください。
+                    </p>
+                    
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        既にアカウントをお持ちの方は<a href="{% url 'account_login' %}">ログイン</a>してご利用いただけます。
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'account_login' %}" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> ログインページ
+                        </a>
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home"></i> トップページに戻る
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
