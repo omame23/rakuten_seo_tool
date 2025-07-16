@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}不正なリクエスト{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="text-center">
+                <h1 class="display-1">400</h1>
+                <p class="fs-3"><span class="text-danger">エラー</span> 不正なリクエスト</p>
+                <p class="lead">
+                    リクエストに問題があります。もう一度お試しください。
+                </p>
+                <a href="{% url 'home' %}" class="btn btn-primary">ホームへ戻る</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

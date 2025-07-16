@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}店舗管理 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-store"></i> 店舗管理
+                    <span class="badge bg-danger ms-2">マスター</span>
+                </h1>
+                <div>
+                    <a href="{% url 'accounts:master_store_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 新規店舗追加
+                    </a>
+                    <a href="{% url 'accounts:master_store_export' %}" class="btn btn-outline-success">
+                        <i class="fas fa-download"></i> CSV出力
+                    </a>
+                </div>
+            </div>
+
+            <!-- 統計カード -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">{{ total_stores }}</h5>
+                            <p class="card-text">総店舗数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-success">{{ active_stores }}</h5>
+                            <p class="card-text">有効店舗</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-info">{{ trial_stores }}</h5>
+                            <p class="card-text">トライアル</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">{{ inactive_stores }}</h5>
+                            <p class="card-text">無効店舗</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 検索・フィルター -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">検索</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search }}" placeholder="店舗ID、会社名、担当者名、メールアドレス">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">ステータス</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">全て</option>
+                                <option value="active" {% if status == 'active' %}selected{% endif %}>有効</option>
+                                <option value="trial" {% if status == 'trial' %}selected{% endif %}>トライアル</option>
+                                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>無効</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search"></i> 検索
+                            </button>
+                            <a href="{% url 'accounts:master_store_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> クリア
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 一括操作 -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <form id="bulk-action-form" method="post" action="{% url 'accounts:master_store_bulk_action' %}">
+                        {% csrf_token %}
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <select name="action" class="form-select">
+                                    <option value="">一括操作を選択</option>
+                                    <option value="activate">有効化</option>
+                                    <option value="deactivate">無効化</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-warning" disabled id="bulk-action-btn">
+                                    <i class="fas fa-cogs"></i> 実行
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">
+                                    <span id="selected-count">0</span>件選択中
+                                </small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 店舗一覧テーブル -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="select-all" class="form-check-input">
+                                    </th>
+                                    <th>楽天店舗ID</th>
+                                    <th>会社名</th>
+                                    <th>担当者名</th>
+                                    <th>メールアドレス</th>
+                                    <th>ステータス</th>
+                                    <th>キーワード数</th>
+                                    <th>登録日</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for store in stores %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="store_ids" value="{{ store.id }}" 
+                                               class="form-check-input store-checkbox">
+                                    </td>
+                                    <td>
+                                        {% if store.rakuten_shop_id %}
+                                            <a href="{% url 'accounts:master_view_store_dashboard' store.id %}" 
+                                               class="text-decoration-none store-id-link" 
+                                               title="この店舗のダッシュボードを表示">
+                                                <code class="text-primary">{{ store.rakuten_shop_id }}</code>
+                                                <i class="fas fa-external-link-alt ms-1 small text-muted"></i>
+                                            </a>
+                                        {% else %}
+                                            <code class="text-muted">-</code>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ store.company_name }}</strong>
+                                    </td>
+                                    <td>{{ store.contact_name }}</td>
+                                    <td>{{ store.email }}</td>
+                                    <td>
+                                        {% if store.is_active and store.subscription_status == 'active' %}
+                                            <span class="badge bg-success">有効</span>
+                                        {% elif store.subscription_status == 'trial' %}
+                                            <span class="badge bg-info">トライアル</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">無効</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            SEO: {{ store.keyword_count }}<br>
+                                            RPP: {{ store.rpp_keyword_count }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ store.date_joined|date:"Y/m/d" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'accounts:master_store_detail' store.id %}" 
+                                               class="btn btn-sm btn-outline-primary" title="詳細">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'accounts:master_store_update' store.id %}" 
+                                               class="btn btn-sm btn-outline-secondary" title="編集">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'accounts:master_store_delete' store.id %}" 
+                                               class="btn btn-sm btn-outline-danger" title="削除">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        店舗データがありません
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ページネーション -->
+                    {% if is_paginated %}
+                    <nav aria-label="ページナビゲーション">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">最初</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">前へ</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">次へ</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">最後</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 全選択機能
+document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.store-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateBulkActionButton();
+});
+
+// 個別チェックボックス
+document.querySelectorAll('.store-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', updateBulkActionButton);
+});
+
+function updateBulkActionButton() {
+    const checkedBoxes = document.querySelectorAll('.store-checkbox:checked');
+    const count = checkedBoxes.length;
+    
+    document.getElementById('selected-count').textContent = count;
+    document.getElementById('bulk-action-btn').disabled = count === 0;
+    
+    // 全選択チェックボックスの状態更新
+    const selectAll = document.getElementById('select-all');
+    const totalBoxes = document.querySelectorAll('.store-checkbox').length;
+    
+    if (count === 0) {
+        selectAll.indeterminate = false;
+        selectAll.checked = false;
+    } else if (count === totalBoxes) {
+        selectAll.indeterminate = false;
+        selectAll.checked = true;
+    } else {
+        selectAll.indeterminate = true;
+    }
+}
+
+// 一括操作フォーム送信
+document.getElementById('bulk-action-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const action = this.querySelector('select[name="action"]').value;
+    const checkedBoxes = document.querySelectorAll('.store-checkbox:checked');
+    
+    if (!action) {
+        alert('操作を選択してください。');
+        return;
+    }
+    
+    if (checkedBoxes.length === 0) {
+        alert('店舗を選択してください。');
+        return;
+    }
+    
+    const actionText = action === 'activate' ? '有効化' : '無効化';
+    if (confirm(`選択した${checkedBoxes.length}件の店舗を${actionText}しますか？`)) {
+        // チェックされた店舗IDを追加
+        checkedBoxes.forEach(checkbox => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'store_ids';
+            input.value = checkbox.value;
+            this.appendChild(input);
+        });
+        
+        this.submit();
+    }
+});
+
+// 初期状態の更新
+updateBulkActionButton();
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 楽天店舗IDリンクのホバー効果 */
+.store-id-link:hover code {
+    background-color: #e3f2fd !important;
+    color: #1976d2 !important;
+}
+
+.store-id-link:hover .fa-external-link-alt {
+    color: #1976d2 !important;
+}
+</style>
+{% endblock %}

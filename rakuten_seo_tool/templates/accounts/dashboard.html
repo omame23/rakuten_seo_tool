@@ -6,14 +6,49 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
-            <h1 class="mb-4">
-                ダッシュボード
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
+                    ダッシュボード
+                    {% if user.is_master %}
+                        <span class="badge bg-danger ms-2">
+                            <i class="fas fa-crown"></i> マスター
+                        </span>
+                    {% endif %}
+                </h1>
+                
                 {% if user.is_master %}
-                    <span class="badge bg-danger ms-2">
-                        <i class="fas fa-crown"></i> マスター
-                    </span>
+                <!-- 店舗切り替えプルダウン -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary dropdown-toggle" type="button" 
+                            id="storeSelectDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-store"></i> 
+                        <span id="selected-store-name">
+                            {% if request.session.selected_store_name %}
+                                {{ request.session.selected_store_name }}
+                            {% else %}
+                                全店舗
+                            {% endif %}
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="storeSelectDropdown" style="max-height: 300px; overflow-y: auto;">
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="selectStore('all', '全店舗')">
+                                <i class="fas fa-globe"></i> 全店舗
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% for store in all_stores %}
+                        <li>
+                            <a class="dropdown-item" href="#" onclick="selectStore('{{ store.id }}', '{{ store.company_name|escapejs }}')">
+                                <i class="fas fa-store"></i> {{ store.company_name }}
+                                <small class="text-muted d-block">{{ store.rakuten_shop_id }}</small>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
                 {% endif %}
-            </h1>
+            </div>
             
             <!-- マスターアカウント専用通知 -->
             {% if user.is_master %}
@@ -111,18 +146,29 @@
                                 <a href="{% url 'seo_ranking:keyword_list' %}" class="btn btn-outline-primary">
                                     <i class="fas fa-list"></i> キーワード一覧
                                 </a>
-                                {% if user.can_execute_bulk_search_today and user.is_within_trial_period or user.is_master %}
-                                <button type="button" class="btn btn-success" id="bulk-search-btn">
-                                    <i class="fas fa-play"></i> 一括順位確認
-                                </button>
+                                {% if user.is_master %}
+                                    {% if selected_store %}
+                                        <button type="button" class="btn btn-success" id="bulk-search-btn">
+                                            <i class="fas fa-play"></i> 一括順位確認
+                                            <small class="d-block">（{{ selected_store.company_name }}）</small>
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-secondary" disabled>
+                                            <i class="fas fa-store"></i> 店舗を選択
+                                        </button>
+                                    {% endif %}
+                                {% elif user.can_execute_bulk_search_today and user.is_within_trial_period %}
+                                    <button type="button" class="btn btn-success" id="bulk-search-btn">
+                                        <i class="fas fa-play"></i> 一括順位確認
+                                    </button>
                                 {% elif not user.can_execute_bulk_search_today %}
-                                <button type="button" class="btn btn-secondary" disabled>
-                                    <i class="fas fa-clock"></i> 今日は実行済み
-                                </button>
+                                    <button type="button" class="btn btn-secondary" disabled>
+                                        <i class="fas fa-clock"></i> 今日は実行済み
+                                    </button>
                                 {% else %}
-                                <button type="button" class="btn btn-secondary" disabled>
-                                    <i class="fas fa-lock"></i> 無料期間終了
-                                </button>
+                                    <button type="button" class="btn btn-secondary" disabled>
+                                        <i class="fas fa-lock"></i> 無料期間終了
+                                    </button>
                                 {% endif %}
                                 {% if user.is_master %}
                                 <a href="{% url 'seo_ranking:dashboard' %}" class="btn btn-outline-danger">
@@ -148,14 +194,14 @@
                             </div>
                             {% endif %}
                             <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-primary">
+                                <a href="{% url 'seo_ranking:rpp_keyword_create' %}" class="btn btn-primary">
                                     <i class="fas fa-plus"></i> キーワードを登録
                                 </a>
-                                <a href="#" class="btn btn-outline-primary">
+                                <a href="{% url 'seo_ranking:rpp_keyword_list' %}" class="btn btn-outline-primary">
                                     <i class="fas fa-chart-bar"></i> レポートを見る
                                 </a>
                                 {% if user.is_master %}
-                                <a href="#" class="btn btn-outline-danger">
+                                <a href="{% url 'seo_ranking:rpp_all_data' %}" class="btn btn-outline-danger">
                                     <i class="fas fa-globe"></i> 全店舗データ
                                 </a>
                                 {% endif %}
@@ -178,10 +224,10 @@
                                 <div class="col-md-4">
                                     <div class="card">
                                         <div class="card-body text-center">
-                                            <i class="fas fa-users fa-2x text-primary mb-3"></i>
-                                            <h6>ユーザー管理</h6>
-                                            <p class="text-muted small">全ユーザーの管理・確認</p>
-                                            <a href="/admin/accounts/user/" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-store fa-2x text-primary mb-3"></i>
+                                            <h6>店舗管理</h6>
+                                            <p class="text-muted small">全店舗の管理・確認</p>
+                                            <a href="{% url 'accounts:master_store_list' %}" class="btn btn-outline-primary btn-sm">
                                                 管理画面
                                             </a>
                                         </div>
@@ -341,5 +387,40 @@ document.getElementById('bulk-search-btn')?.addEventListener('click', function()
         button.innerHTML = originalContent;
     });
 });
+
+{% if user.is_master %}
+// 店舗切り替え機能
+function selectStore(storeId, storeName) {
+    // CSRF トークンを取得
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+    
+    // Ajax で選択店舗をセッションに保存
+    fetch('{% url "accounts:master_set_selected_store" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: `store_id=${storeId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 表示を更新
+            document.getElementById('selected-store-name').textContent = storeName;
+            
+            // ページをリロードして選択店舗のデータを表示
+            window.location.reload();
+        } else {
+            alert('店舗の切り替えに失敗しました: ' + (data.error || '不明なエラー'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('通信エラーが発生しました');
+    });
+}
+{% endif %}
 </script>
 {% endblock %}

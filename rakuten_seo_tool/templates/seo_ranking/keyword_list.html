@@ -10,7 +10,15 @@
                 <div>
                     <h1>
                         <i class="fas fa-search"></i> SEO検索順位キーワード
+                        {% if user.is_master and target_user %}
+                            <span class="badge bg-info ms-2">{{ target_user.company_name }}</span>
+                        {% endif %}
                     </h1>
+                    {% if user.is_master and target_user %}
+                        <small class="text-muted">
+                            <i class="fas fa-store"></i> 店舗: {{ target_user.company_name }}（{{ target_user.rakuten_shop_id }}）
+                        </small><br>
+                    {% endif %}
                     {% if keyword_limit %}
                     <small class="text-muted">
                         登録キーワード数: {{ total_keywords }} / {{ keyword_limit }}
@@ -21,7 +29,13 @@
                     {% else %}
                     <small class="text-muted">
                         登録キーワード数: {{ total_keywords }}
-                        <span class="badge bg-danger">マスター</span>
+                        {% if user.is_master %}
+                            {% if target_user %}
+                                / 10（この店舗の上限）
+                            {% else %}
+                                （全店舗合計）
+                            {% endif %}
+                        {% endif %}
                     </small>
                     {% endif %}
                 </div>

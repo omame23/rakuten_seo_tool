@@ -33,7 +33,31 @@ class DashboardView(TemplateView):
         
         # キーワード数を取得
         from seo_ranking.models import Keyword
-        keyword_count = Keyword.objects.filter(user=user).count()
+        
+        # マスターアカウントの場合は選択店舗のデータを表示
+        if user.is_master:
+            # 全店舗リストを取得
+            from .models import User
+            all_stores = User.objects.filter(is_master=False).order_by('company_name')
+            context['all_stores'] = all_stores
+            
+            # 選択店舗があればそのデータを表示
+            selected_store_id = self.request.session.get('selected_store_id')
+            if selected_store_id:
+                try:
+                    selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                    keyword_count = Keyword.objects.filter(user=selected_user).count()
+                    context['selected_store'] = selected_user
+                except User.DoesNotExist:
+                    # 選択店舗が見つからない場合はセッションをクリア
+                    self.request.session.pop('selected_store_id', None)
+                    self.request.session.pop('selected_store_name', None)
+                    keyword_count = Keyword.objects.filter(user__is_master=False).count()
+            else:
+                # 全店舗のキーワード数
+                keyword_count = Keyword.objects.filter(user__is_master=False).count()
+        else:
+            keyword_count = Keyword.objects.filter(user=user).count()
         
         context['has_active_subscription'] = user.has_active_subscription()
         context['subscription_status'] = user.subscription_status

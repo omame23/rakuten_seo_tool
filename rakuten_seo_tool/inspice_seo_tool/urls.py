@@ -33,3 +33,9 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Custom error handlers
+handler404 = 'inspice_seo_tool.views.custom_404'
+handler500 = 'inspice_seo_tool.views.custom_500'
+handler403 = 'inspice_seo_tool.views.custom_403'
+handler400 = 'inspice_seo_tool.views.custom_400'

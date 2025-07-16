@@ -3,6 +3,9 @@ from django.dispatch import receiver
 from django.contrib.auth.signals import user_logged_in
 from django.contrib import messages
 from .models import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=User)
@@ -10,7 +13,7 @@ def user_created(sender, instance, created, **kwargs):
     """新規ユーザー作成時の処理"""
     if created:
         # ログに記録
-        print(f"新規ユーザーが作成されました: {instance.email}")
+        logger.info(f"新規ユーザーが作成されました: {instance.email}")
         
         # 必要に応じて追加の初期化処理
         # - ユーザープロファイルの作成

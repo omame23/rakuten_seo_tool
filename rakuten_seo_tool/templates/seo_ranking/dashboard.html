@@ -21,14 +21,14 @@
                     <div class="row">
                         <div class="col-md-4">
                             <h6 class="text-danger">
-                                <i class="fas fa-users"></i> ユーザー管理
+                                <i class="fas fa-store"></i> 店舗管理
                             </h6>
                             <div class="d-grid gap-2 mb-3">
-                                <a href="/admin/auth/user/" class="btn btn-outline-danger btn-sm">
-                                    <i class="fas fa-user-cog"></i> ユーザー一覧・編集・削除
+                                <a href="{% url 'accounts:master_store_list' %}" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-store"></i> 店舗一覧・編集・削除
                                 </a>
-                                <a href="/admin/auth/user/add/" class="btn btn-outline-success btn-sm">
-                                    <i class="fas fa-user-plus"></i> 新規ユーザー追加
+                                <a href="{% url 'accounts:master_store_create' %}" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-plus"></i> 新規店舗追加
                                 </a>
                             </div>
                         </div>

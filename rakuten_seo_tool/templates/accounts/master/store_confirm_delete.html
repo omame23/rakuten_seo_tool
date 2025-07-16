@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}店舗削除確認 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> 店舗削除確認
+                        <span class="badge bg-dark ms-2">マスター</span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-triangle"></i> 重要な警告</h5>
+                        <p class="mb-0">
+                            この操作を実行すると、以下のデータが<strong>完全に削除</strong>され、<strong>復元できません</strong>。
+                        </p>
+                    </div>
+
+                    <!-- 削除対象店舗情報 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">削除対象店舗</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless table-sm">
+                                        <tr>
+                                            <th class="text-muted">楽天店舗ID:</th>
+                                            <td><code>{{ store.rakuten_shop_id|default:'-' }}</code></td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">会社名:</th>
+                                            <td><strong>{{ store.company_name }}</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">担当者名:</th>
+                                            <td>{{ store.contact_name }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">メールアドレス:</th>
+                                            <td>{{ store.email }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless table-sm">
+                                        <tr>
+                                            <th class="text-muted">登録日:</th>
+                                            <td>{{ store.date_joined|date:"Y年m月d日" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">ステータス:</th>
+                                            <td>
+                                                {% if store.is_active and store.subscription_status == 'active' %}
+                                                    <span class="badge bg-success">有効</span>
+                                                {% elif store.subscription_status == 'trial' %}
+                                                    <span class="badge bg-info">トライアル</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">無効</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">SEOキーワード:</th>
+                                            <td>{{ store.keywords.count }}件</td>
+                                        </tr>
+                                        <tr>
+                                            <th class="text-muted">RPPキーワード:</th>
+                                            <td>{{ store.rpp_keywords.count }}件</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 削除されるデータの詳細 -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">削除されるデータ</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-search text-primary"></i> SEO関連データ</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> SEOキーワード: {{ store.keywords.count }}件</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> 順位結果: {{ store.search_logs.count }}件</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> 上位商品データ: 関連する全データ</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> AI分析結果: 関連する全データ</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> 検索ログ: {{ store.search_logs.count }}件</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-ad text-info"></i> RPP関連データ</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> RPPキーワード: {{ store.rpp_keywords.count }}件</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> RPP結果: 関連する全データ</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> 広告データ: 関連する全データ</li>
+                                        <li><i class="fas fa-circle fa-xs text-danger"></i> RPP検索ログ: 関連する全データ</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>注意:</strong> 上記のデータは全て完全に削除され、復元することはできません。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 削除実行確認 -->
+                    <div class="card border-danger">
+                        <div class="card-body">
+                            <h6 class="text-danger">削除を実行するには、以下に店舗名を正確に入力してください:</h6>
+                            <div class="mb-3">
+                                <label for="confirm-name" class="form-label">
+                                    「<strong>{{ store.company_name }}</strong>」を入力:
+                                </label>
+                                <input type="text" class="form-control" id="confirm-name" 
+                                       placeholder="{{ store.company_name }}">
+                            </div>
+
+                            <form method="post" id="delete-form">
+                                {% csrf_token %}
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'accounts:master_store_detail' store.id %}" 
+                                       class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-left"></i> キャンセル
+                                    </a>
+                                    <button type="submit" class="btn btn-danger" id="delete-btn" disabled>
+                                        <i class="fas fa-trash"></i> 完全に削除する
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 店舗名確認機能
+const confirmNameInput = document.getElementById('confirm-name');
+const deleteBtn = document.getElementById('delete-btn');
+const deleteForm = document.getElementById('delete-form');
+const expectedName = '{{ store.company_name|escapejs }}';
+
+confirmNameInput.addEventListener('input', function() {
+    const inputValue = this.value.trim();
+    if (inputValue === expectedName) {
+        deleteBtn.disabled = false;
+        deleteBtn.classList.remove('btn-secondary');
+        deleteBtn.classList.add('btn-danger');
+    } else {
+        deleteBtn.disabled = true;
+        deleteBtn.classList.remove('btn-danger');
+        deleteBtn.classList.add('btn-secondary');
+    }
+});
+
+// フォーム送信時の最終確認
+deleteForm.addEventListener('submit', function(e) {
+    const inputValue = confirmNameInput.value.trim();
+    
+    if (inputValue !== expectedName) {
+        e.preventDefault();
+        alert('店舗名が正確に入力されていません。');
+        return;
+    }
+    
+    const confirmMessage = `本当に店舗「${expectedName}」を削除しますか？\n\n` +
+                          '以下のデータが完全に削除されます：\n' +
+                          '• 全てのSEOキーワードと順位データ\n' +
+                          '• 全てのRPPキーワードと広告データ\n' +
+                          '• 全ての検索ログとAI分析結果\n' +
+                          '• アカウント情報\n\n' +
+                          'この操作は取り消すことができません。';
+                          
+    if (!confirm(confirmMessage)) {
+        e.preventDefault();
+    }
+});
+
+// Enterキーでの削除防止
+confirmNameInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

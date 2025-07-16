@@ -22,7 +22,26 @@ logger = logging.getLogger(__name__)
 @login_required
 def keyword_list(request):
     """キーワード一覧"""
-    keywords = Keyword.objects.filter(user=request.user).order_by('-created_at')
+    # マスターアカウントの場合は選択店舗のキーワードを表示
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                keywords = Keyword.objects.filter(user=selected_user).order_by('-created_at')
+                target_user = selected_user
+            except User.DoesNotExist:
+                # 選択店舗が見つからない場合は全店舗のキーワード（マスター含む）
+                keywords = Keyword.objects.all().order_by('-created_at')
+                target_user = None
+        else:
+            # 全店舗のキーワード（マスター含む）
+            keywords = Keyword.objects.all().order_by('-created_at')
+            target_user = None
+    else:
+        keywords = Keyword.objects.filter(user=request.user).order_by('-created_at')
+        target_user = request.user
     
     # 検索フィルタ
     search_query = request.GET.get('search', '')
@@ -45,8 +64,15 @@ def keyword_list(request):
     page_obj = paginator.get_page(page_number)
     
     # 登録数情報を追加
-    total_keywords = Keyword.objects.filter(user=request.user).count()
-    keyword_limit = None if request.user.is_master else 10
+    if request.user.is_master:
+        if target_user:
+            total_keywords = Keyword.objects.filter(user=target_user).count()
+        else:
+            total_keywords = Keyword.objects.all().count()
+        keyword_limit = None  # マスターアカウントは制限なし
+    else:
+        total_keywords = Keyword.objects.filter(user=request.user).count()
+        keyword_limit = 10
     
     return render(request, 'seo_ranking/keyword_list.html', {
         'page_obj': page_obj,
@@ -54,39 +80,67 @@ def keyword_list(request):
         'active_filter': active_filter,
         'total_keywords': total_keywords,
         'keyword_limit': keyword_limit,
+        'target_user': target_user,
     })
 
 
 @login_required
 def keyword_create(request):
     """キーワード作成"""
-    # キーワード登録数チェック（マスターアカウント以外）
+    # マスターアカウントの場合は選択店舗を取得
+    selected_store = None
+    target_user = request.user
+    
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_store = User.objects.get(id=selected_store_id, is_master=False)
+                target_user = selected_store
+            except User.DoesNotExist:
+                messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+                return redirect('seo_ranking:keyword_list')
+        else:
+            messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+            return redirect('seo_ranking:keyword_list')
+    
+    # キーワード登録数チェック
     if not request.user.is_master:
-        current_count = Keyword.objects.filter(user=request.user).count()
+        current_count = Keyword.objects.filter(user=target_user).count()
         if current_count >= 10:
             messages.error(request, 'キーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
             return redirect('seo_ranking:keyword_list')
+    elif request.user.is_master and selected_store:
+        # マスターアカウントが選択店舗にキーワードを登録する場合も制限チェック
+        current_count = Keyword.objects.filter(user=selected_store).count()
+        if current_count >= 10:
+            messages.error(request, f'店舗「{selected_store.company_name}」のキーワード登録数の上限（10個）に達しています。')
+            return redirect('seo_ranking:keyword_list')
     
     if request.method == 'POST':
-        form = KeywordForm(request.POST, user=request.user)
+        form = KeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
             # 再度チェック（並行アクセス対策）
-            if not request.user.is_master:
-                current_count = Keyword.objects.filter(user=request.user).count()
-                if current_count >= 10:
-                    messages.error(request, 'キーワード登録数の上限（10個）に達しています。')
-                    return redirect('seo_ranking:keyword_list')
+            current_count = Keyword.objects.filter(user=target_user).count()
+            if current_count >= 10:
+                store_name = selected_store.company_name if selected_store else "あなた"
+                messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達しています。')
+                return redirect('seo_ranking:keyword_list')
             
             keyword = form.save(commit=False)
-            keyword.user = request.user
+            keyword.user = target_user
             keyword.save()
-            messages.success(request, f'キーワード "{keyword.keyword}" を登録しました。')
+            
+            store_name = selected_store.company_name if selected_store else "あなた"
+            messages.success(request, f'{store_name}のキーワード "{keyword.keyword}" を登録しました。')
             return redirect('seo_ranking:keyword_list')
     else:
-        form = KeywordForm(user=request.user)
+        form = KeywordForm(user=request.user, selected_store=selected_store)
     
     return render(request, 'seo_ranking/keyword_form.html', {
         'form': form,
+        'selected_store': selected_store,
         'title': 'キーワード登録',
         'bulk_mode': False,
     })
@@ -95,15 +149,33 @@ def keyword_create(request):
 @login_required
 def keyword_bulk_create(request):
     """キーワード一括作成"""
-    # キーワード登録数チェック（マスターアカウント以外）
-    if not request.user.is_master:
-        current_count = Keyword.objects.filter(user=request.user).count()
-        if current_count >= 10:
-            messages.error(request, 'キーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
+    # マスターアカウントの場合は選択店舗を取得
+    selected_store = None
+    target_user = request.user
+    
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_store = User.objects.get(id=selected_store_id, is_master=False)
+                target_user = selected_store
+            except User.DoesNotExist:
+                messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+                return redirect('seo_ranking:keyword_list')
+        else:
+            messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
             return redirect('seo_ranking:keyword_list')
     
+    # キーワード登録数チェック
+    current_count = Keyword.objects.filter(user=target_user).count()
+    if current_count >= 10:
+        store_name = selected_store.company_name if selected_store else "あなた"
+        messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
+        return redirect('seo_ranking:keyword_list')
+    
     if request.method == 'POST':
-        form = BulkKeywordForm(request.POST, user=request.user)
+        form = BulkKeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
             keywords_list = form.cleaned_data['keywords']
             rakuten_shop_id = form.cleaned_data['rakuten_shop_id']
@@ -121,7 +193,7 @@ def keyword_bulk_create(request):
             
             # 重複チェック用に既存キーワードを取得
             existing_keywords = set(
-                Keyword.objects.filter(user=request.user, rakuten_shop_id=rakuten_shop_id)
+                Keyword.objects.filter(user=target_user, rakuten_shop_id=rakuten_shop_id)
                 .values_list('keyword', flat=True)
             )
             
@@ -129,24 +201,23 @@ def keyword_bulk_create(request):
             created_count = 0
             skipped_count = 0
             
-            # 現在の登録数を取得（マスターアカウント以外のみチェック）
-            if not request.user.is_master:
-                current_count = Keyword.objects.filter(user=request.user).count()
+            # 現在の登録数を取得
+            current_count = Keyword.objects.filter(user=target_user).count()
             
             for keyword_text in keywords_list:
                 if keyword_text in existing_keywords:
                     skipped_count += 1
                     continue
                 
-                # 登録数制限チェック（マスターアカウント以外）
-                if not request.user.is_master:
-                    if current_count >= 10:
-                        messages.error(request, f'キーワード登録数の上限（10個）に達したため、"{keyword_text}" 以降の登録を中断しました。')
-                        break
+                # 登録数制限チェック（各店舗10個まで）
+                if current_count >= 10:
+                    store_name = selected_store.company_name if selected_store else "あなた"
+                    messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達したため、"{keyword_text}" 以降の登録を中断しました。')
+                    break
                 
                 try:
                     Keyword.objects.create(
-                        user=request.user,
+                        user=target_user,
                         keyword=keyword_text,
                         rakuten_shop_id=rakuten_shop_id,
                         target_product_url=target_product_url,
@@ -154,33 +225,38 @@ def keyword_bulk_create(request):
                         is_active=is_active
                     )
                     created_count += 1
-                    if not request.user.is_master:
-                        current_count += 1
+                    current_count += 1
                 except Exception as e:
                     logger.error(f'Error creating keyword "{keyword_text}": {e}')
                     skipped_count += 1
             
             # 結果メッセージ
+            store_name = selected_store.company_name if selected_store else "あなた"
             if created_count > 0:
-                messages.success(request, f'{created_count}個のキーワードを登録しました。')
+                messages.success(request, f'{store_name}に{created_count}個のキーワードを登録しました。')
             if skipped_count > 0:
                 messages.warning(request, f'{skipped_count}個のキーワードはスキップされました（重複または処理エラー）。')
             
             return redirect('seo_ranking:keyword_list')
     else:
-        form = BulkKeywordForm(user=request.user)
+        form = BulkKeywordForm(user=request.user, selected_store=selected_store)
     
     return render(request, 'seo_ranking/keyword_form.html', {
         'form': form,
         'title': 'キーワード一括登録',
         'bulk_mode': True,
+        'selected_store': selected_store,
     })
 
 
 @login_required
 def keyword_edit(request, keyword_id):
     """キーワード編集"""
-    keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(Keyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
     
     if request.method == 'POST':
         form = KeywordForm(request.POST, instance=keyword, user=request.user)
@@ -202,7 +278,11 @@ def keyword_edit(request, keyword_id):
 @login_required
 def keyword_delete(request, keyword_id):
     """キーワード削除"""
-    keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(Keyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
     
     if request.method == 'POST':
         keyword_name = keyword.keyword
@@ -219,7 +299,11 @@ def keyword_delete(request, keyword_id):
 @require_http_methods(["POST"])
 def keyword_search(request, keyword_id):
     """キーワード検索実行"""
-    keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(Keyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
     
     # サブスクリプションチェック
     if not request.user.has_active_subscription():
@@ -250,14 +334,18 @@ def keyword_search(request, keyword_id):
     
     except Exception as e:
         logger.error(f'Search error for keyword {keyword_id}: {e}')
-        messages.error(request, f'検索中にエラーが発生しました: {str(e)}')
-        return JsonResponse({'success': False, 'message': str(e)})
+        messages.error(request, '検索中にエラーが発生しました。しばらくしてから再度お試しください。')
+        return JsonResponse({'success': False, 'message': '検索処理でエラーが発生しました'})
 
 
 @login_required
 def ranking_results(request, keyword_id):
     """順位結果履歴"""
-    keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(Keyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
     
     # 順位結果を取得
     results = RankingResult.objects.filter(keyword=keyword).order_by('-checked_at')
@@ -297,7 +385,11 @@ def ranking_results(request, keyword_id):
 @login_required
 def ranking_detail(request, result_id):
     """順位結果詳細"""
-    result = get_object_or_404(RankingResult, id=result_id, keyword__user=request.user)
+    # マスターアカウントの場合は全店舗のランキング結果にアクセス可能
+    if request.user.is_master:
+        result = get_object_or_404(RankingResult, id=result_id)
+    else:
+        result = get_object_or_404(RankingResult, id=result_id, keyword__user=request.user)
     
     # 上位10商品を取得
     top_products = TopProduct.objects.filter(ranking_result=result).order_by('rank')
@@ -375,7 +467,11 @@ def ranking_detail(request, result_id):
 @login_required
 def export_ranking_csv(request, result_id):
     """順位結果詳細をCSVでエクスポート"""
-    result = get_object_or_404(RankingResult, id=result_id, keyword__user=request.user)
+    # マスターアカウントの場合は全店舗のランキング結果にアクセス可能
+    if request.user.is_master:
+        result = get_object_or_404(RankingResult, id=result_id)
+    else:
+        result = get_object_or_404(RankingResult, id=result_id, keyword__user=request.user)
     
     # 上位10商品を取得
     top_products = TopProduct.objects.filter(ranking_result=result).order_by('rank')
@@ -473,7 +569,11 @@ def export_ranking_csv(request, result_id):
 @login_required
 def search_logs(request):
     """検索ログ一覧"""
-    logs = SearchLog.objects.filter(user=request.user).order_by('-created_at')
+    # マスターアカウントの場合は全店舗のログを表示（マスター含む）
+    if request.user.is_master:
+        logs = SearchLog.objects.all().order_by('-created_at')
+    else:
+        logs = SearchLog.objects.filter(user=request.user).order_by('-created_at')
     
     # フィルタ
     success_filter = request.GET.get('success', '')
@@ -553,31 +653,45 @@ def bulk_keyword_search(request):
     """一括キーワード検索実行"""
     user = request.user
     
+    # マスターアカウントの場合は選択店舗のキーワードを取得
+    target_user = user
+    if user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                target_user = User.objects.get(id=selected_store_id, is_master=False)
+            except User.DoesNotExist:
+                return JsonResponse({'success': False, 'error': '店舗が選択されていません。'})
+        else:
+            return JsonResponse({'success': False, 'error': '店舗が選択されていません。店舗を選択してから実行してください。'})
+    
     # 1ヶ月無料期間チェック（マスターアカウントは除外）
-    if not user.is_master and not user.is_within_trial_period():
+    if not user.is_master and not target_user.is_within_trial_period():
         return JsonResponse({'success': False, 'error': '無料期間が終了しています。有料プランへのアップグレードが必要です。'})
     
-    # 1日1回制限チェック（マスターアカウントは除外）
-    if not user.is_master and not user.can_execute_bulk_search_today():
+    # 1日1回制限チェック（マスターアカウント以外）
+    if not user.is_master and not target_user.can_execute_bulk_search_today():
         messages.error(request, '一括検索は1日1回のみ実行可能です。明日再度お試しください。')
         return JsonResponse({'success': False, 'error': '一括検索は1日1回のみ実行可能です。明日再度お試しください。'})
     
     try:
-        # アクティブなキーワードを取得
-        active_keywords = Keyword.objects.filter(user=user, is_active=True)
+        # 対象ユーザーのアクティブなキーワードを取得
+        active_keywords = Keyword.objects.filter(user=target_user, is_active=True)
         
         if not active_keywords.exists():
             messages.warning(request, 'アクティブなキーワードが見つかりません。')
             return JsonResponse({'success': False, 'error': 'アクティブなキーワードが見つかりません。'})
         
-        # 検索マネージャーを初期化
-        search_manager = RakutenSearchManager(user)
+        # 検索マネージャーを初期化（対象ユーザーで初期化）
+        search_manager = RakutenSearchManager(target_user)
         
         success_count = 0
         error_count = 0
         total_count = active_keywords.count()
         
-        logger.info(f"Starting bulk search for user {user.id}, {total_count} keywords")
+        store_name = target_user.company_name if user.is_master else target_user.email
+        logger.info(f"Starting bulk search for user {target_user.id} ({store_name}), {total_count} keywords")
         
         for i, keyword in enumerate(active_keywords):
             try:
@@ -598,10 +712,11 @@ def bulk_keyword_search(request):
         
         # 最終一括検索日を更新（マスターアカウント以外）
         if not user.is_master:
-            user.update_last_bulk_search_date()
+            target_user.update_last_bulk_search_date()
         
         # 結果メッセージ
-        message = f'一括検索が完了しました。成功: {success_count}件'
+        store_info = f"店舗「{target_user.company_name}」の" if user.is_master else ""
+        message = f'{store_info}一括検索が完了しました。成功: {success_count}件'
         if error_count > 0:
             message += f', エラー: {error_count}件'
         
@@ -617,8 +732,8 @@ def bulk_keyword_search(request):
         
     except Exception as e:
         logger.error(f'Bulk search error for user {user.id}: {e}')
-        messages.error(request, f'一括検索中にエラーが発生しました: {str(e)}')
-        return JsonResponse({'success': False, 'error': str(e)})
+        messages.error(request, '一括検索中にエラーが発生しました。しばらくしてから再度お試しください。')
+        return JsonResponse({'success': False, 'error': '検索処理でエラーが発生しました'})
 
 
 @login_required
@@ -626,12 +741,15 @@ def bulk_keyword_search(request):
 def update_ranking_memo(request, result_id):
     """SEOランキング結果のメモを更新"""
     try:
-        # ランキング結果を取得（ユーザーが所有するもののみ）
-        ranking_result = get_object_or_404(
-            RankingResult,
-            id=result_id,
-            keyword__user=request.user
-        )
+        # ランキング結果を取得（マスターアカウントの場合は全店舗アクセス可能）
+        if request.user.is_master:
+            ranking_result = get_object_or_404(RankingResult, id=result_id)
+        else:
+            ranking_result = get_object_or_404(
+                RankingResult,
+                id=result_id,
+                keyword__user=request.user
+            )
         
         # POSTデータからメモを取得
         memo_text = request.POST.get('memo', '').strip()
@@ -659,8 +777,12 @@ def update_ranking_memo(request, result_id):
         referer = request.META.get('HTTP_REFERER', '')
         if 'results' in referer and 'ranking_detail' not in referer:
             try:
-                ranking_result = RankingResult.objects.get(id=result_id, keyword__user=request.user)
+                # マスターアカウントの場合は全店舗のランキング結果にアクセス可能
+                if request.user.is_master:
+                    ranking_result = RankingResult.objects.get(id=result_id)
+                else:
+                    ranking_result = RankingResult.objects.get(id=result_id, keyword__user=request.user)
                 return redirect('seo_ranking:ranking_results', keyword_id=ranking_result.keyword.id)
-            except:
+            except (RankingResult.DoesNotExist, ValueError):
                 pass
         return redirect('seo_ranking:ranking_detail', result_id=result_id)

@@ -38,12 +38,24 @@ class RPPKeywordForm(forms.ModelForm):
             'is_active': 'チェックすると自動検索の対象になります'
         }
     
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, selected_store=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.selected_store = selected_store
+        # 実際の対象ユーザーを設定（マスターアカウントの場合は選択店舗、通常は自分）
+        self.target_user = selected_store if (user and user.is_master and selected_store) else user
         
-        # マスターアカウント以外は店舗IDを自動設定
-        if user and not user.is_master:
+        # マスターアカウントが選択店舗でキーワードを登録する場合
+        if user and user.is_master and selected_store:
+            # 楽天店舗IDを自動設定して読み取り専用にする
+            self.fields['rakuten_shop_id'].initial = selected_store.rakuten_shop_id
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light',
+                'title': f'選択店舗: {selected_store.company_name}'
+            })
+        elif user and not user.is_master:
+            # 通常ユーザーは自分の店舗IDを自動設定
             self.fields['rakuten_shop_id'].widget = forms.HiddenInput()
             self.fields['rakuten_shop_id'].initial = user.rakuten_shop_id
     
@@ -82,9 +94,9 @@ class RPPKeywordForm(forms.ModelForm):
         shop_id = cleaned_data.get('rakuten_shop_id')
         
         # 重複チェック
-        if keyword and shop_id and self.user:
+        if keyword and shop_id and self.target_user:
             existing = RPPKeyword.objects.filter(
-                user=self.user,
+                user=self.target_user,
                 keyword=keyword,
                 rakuten_shop_id=shop_id
             )
@@ -99,8 +111,8 @@ class RPPKeywordForm(forms.ModelForm):
                 )
         
         # キーワード登録数制限チェック（マスターアカウント以外）
-        if self.user and not self.user.is_master:
-            current_count = RPPKeyword.objects.filter(user=self.user).count()
+        if self.target_user and not self.user.is_master:
+            current_count = RPPKeyword.objects.filter(user=self.target_user).count()
             
             # 新規登録の場合のみチェック
             if not (self.instance and self.instance.pk):
@@ -160,12 +172,24 @@ class BulkRPPKeywordForm(forms.Form):
         help_text='チェックすると自動検索の対象になります'
     )
     
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, selected_store=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.selected_store = selected_store
+        # 実際の対象ユーザーを設定（マスターアカウントの場合は選択店舗、通常は自分）
+        self.target_user = selected_store if (user and user.is_master and selected_store) else user
         
-        # マスターアカウント以外は店舗IDを自動設定
-        if user and not user.is_master:
+        # マスターアカウントが選択店舗でキーワードを登録する場合
+        if user and user.is_master and selected_store:
+            # 楽天店舗IDを自動設定して読み取り専用にする
+            self.fields['rakuten_shop_id'].initial = selected_store.rakuten_shop_id
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light',
+                'title': f'選択店舗: {selected_store.company_name}'
+            })
+        elif user and not user.is_master:
+            # 通常ユーザーは自分の店舗IDを自動設定
             self.fields['rakuten_shop_id'].widget = forms.HiddenInput()
             self.fields['rakuten_shop_id'].initial = user.rakuten_shop_id
     
@@ -226,8 +250,8 @@ class BulkRPPKeywordForm(forms.Form):
         shop_id = cleaned_data.get('rakuten_shop_id')
         
         # 登録数制限チェック（マスターアカウント以外）
-        if self.user and not self.user.is_master and keywords:
-            current_count = RPPKeyword.objects.filter(user=self.user).count()
+        if self.target_user and not self.user.is_master and keywords:
+            current_count = RPPKeyword.objects.filter(user=self.target_user).count()
             new_count = len(keywords)
             
             if current_count + new_count > 10:

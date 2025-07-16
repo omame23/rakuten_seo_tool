@@ -11,6 +11,9 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <h3 class="mb-0">
                             <i class="fas {% if is_edit %}fa-edit{% else %}fa-plus{% endif %}"></i> {{ title }}
+                            {% if selected_store %}
+                                <span class="badge bg-info ms-2">{{ selected_store.company_name }}</span>
+                            {% endif %}
                         </h3>
                         {% if not is_edit %}
                         <div class="btn-group btn-group-sm" role="group">

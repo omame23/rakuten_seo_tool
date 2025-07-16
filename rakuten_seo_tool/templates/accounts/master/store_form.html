@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-store"></i> {{ title }}
+                        <span class="badge bg-danger ms-2">マスター</span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if is_create %}
+                        <!-- 新規作成時：楽天店舗IDのみ -->
+                        <div class="mb-4">
+                            <label for="id_rakuten_shop_id" class="form-label">楽天店舗ID <span class="text-danger">*</span></label>
+                            {{ form.rakuten_shop_id }}
+                            {% if form.rakuten_shop_id.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.rakuten_shop_id.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.rakuten_shop_id.help_text }}</div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>簡単登録</strong><br>
+                            • 楽天店舗IDのみで店舗を追加できます<br>
+                            • その他の情報（メールアドレス、会社名など）は自動で仮の値が設定されます<br>
+                            • 一時パスワード「temppass123」が設定されます<br>
+                            • 登録後に店舗詳細から正式な情報に更新してください
+                        </div>
+                        
+                        {% else %}
+                        <!-- 編集時：全項目表示 -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_email" class="form-label">メールアドレス <span class="text-danger">*</span></label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.email.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">ログイン用のメールアドレス</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_rakuten_shop_id" class="form-label">楽天店舗ID <span class="text-danger">*</span></label>
+                                {{ form.rakuten_shop_id }}
+                                {% if form.rakuten_shop_id.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.rakuten_shop_id.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">楽天市場の店舗ID</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_company_name" class="form-label">会社名 <span class="text-danger">*</span></label>
+                                {{ form.company_name }}
+                                {% if form.company_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.company_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_contact_name" class="form-label">担当者名 <span class="text-danger">*</span></label>
+                                {{ form.contact_name }}
+                                {% if form.contact_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.contact_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_phone_number" class="form-label">電話番号 <span class="text-danger">*</span></label>
+                            {{ form.phone_number }}
+                            {% if form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.phone_number.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">ハイフンありなしは問いません</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_subscription_status" class="form-label">サブスクリプション状態</label>
+                                {{ form.subscription_status }}
+                                {% if form.subscription_status.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.subscription_status.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="id_is_active" class="form-label">アカウント状態</label>
+                                <div class="form-check form-switch mt-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="id_is_active">
+                                        有効
+                                    </label>
+                                </div>
+                                <div class="form-text">無効にするとログインできなくなります</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'accounts:master_store_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> キャンセル
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ button_text }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 楽天店舗IDのバリデーション
+const rakutenShopIdInput = document.getElementById('id_rakuten_shop_id');
+
+if (rakutenShopIdInput) {
+    rakutenShopIdInput.addEventListener('blur', function() {
+        const shopId = this.value;
+        const shopIdRegex = /^[a-zA-Z0-9\-_]+$/;
+        
+        if (shopId && !shopIdRegex.test(shopId)) {
+            this.classList.add('is-invalid');
+            let feedback = this.parentNode.querySelector('.validation-feedback');
+            if (!feedback) {
+                feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback validation-feedback';
+                this.parentNode.appendChild(feedback);
+            }
+            feedback.textContent = '英数字とハイフン、アンダースコアのみ使用できます。';
+        } else {
+            this.classList.remove('is-invalid');
+            const feedback = this.parentNode.querySelector('.validation-feedback');
+            if (feedback) {
+                feedback.remove();
+            }
+        }
+    });
+}
+
+{% if not is_create %}
+// 編集フォームの場合のメールアドレスバリデーション
+const emailInput = document.getElementById('id_email');
+if (emailInput) {
+    emailInput.addEventListener('blur', function() {
+        const email = this.value;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (email && !emailRegex.test(email)) {
+            this.classList.add('is-invalid');
+            let feedback = this.parentNode.querySelector('.validation-feedback');
+            if (!feedback) {
+                feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback validation-feedback';
+                this.parentNode.appendChild(feedback);
+            }
+            feedback.textContent = '正しいメールアドレスを入力してください。';
+        } else {
+            this.classList.remove('is-invalid');
+            const feedback = this.parentNode.querySelector('.validation-feedback');
+            if (feedback) {
+                feedback.remove();
+            }
+        }
+    });
+}
+{% endif %}
+
+// フォーム送信時の最終確認
+document.querySelector('form').addEventListener('submit', function(e) {
+    {% if is_create %}
+    const rakutenShopId = document.getElementById('id_rakuten_shop_id').value;
+    if (!rakutenShopId) {
+        e.preventDefault();
+        alert('楽天店舗IDを入力してください。');
+        return;
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

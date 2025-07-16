@@ -26,7 +26,26 @@ logger = logging.getLogger(__name__)
 @login_required
 def rpp_keyword_list(request):
     """RPPキーワード一覧"""
-    keywords = RPPKeyword.objects.filter(user=request.user).order_by('-created_at')
+    # マスターアカウントの場合は選択店舗のキーワードを表示
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                keywords = RPPKeyword.objects.filter(user=selected_user).order_by('-created_at')
+                target_user = selected_user
+            except User.DoesNotExist:
+                # 選択店舗が見つからない場合は全店舗のキーワード（マスター含む）
+                keywords = RPPKeyword.objects.all().order_by('-created_at')
+                target_user = None
+        else:
+            # 全店舗のキーワード（マスター含む）
+            keywords = RPPKeyword.objects.all().order_by('-created_at')
+            target_user = None
+    else:
+        keywords = RPPKeyword.objects.filter(user=request.user).order_by('-created_at')
+        target_user = request.user
     
     # 検索フィルタ
     search_query = request.GET.get('search', '')
@@ -49,8 +68,15 @@ def rpp_keyword_list(request):
     page_obj = paginator.get_page(page_number)
     
     # 登録数情報を追加
-    total_keywords = RPPKeyword.objects.filter(user=request.user).count()
-    keyword_limit = None if request.user.is_master else 10
+    if request.user.is_master:
+        if target_user:
+            total_keywords = RPPKeyword.objects.filter(user=target_user).count()
+        else:
+            total_keywords = RPPKeyword.objects.all().count()
+        keyword_limit = None  # マスターアカウントは制限なし
+    else:
+        total_keywords = RPPKeyword.objects.filter(user=request.user).count()
+        keyword_limit = 10
     
     # 一括検索実行制限チェック
     can_execute_bulk_search = RPPBulkSearchLog.can_execute_today(request.user)
@@ -64,39 +90,67 @@ def rpp_keyword_list(request):
         'keyword_limit': keyword_limit,
         'can_execute_bulk_search': can_execute_bulk_search,
         'last_execution': last_execution,
+        'target_user': target_user,
     })
 
 
 @login_required
 def rpp_keyword_create(request):
     """RPPキーワード作成"""
-    # キーワード登録数チェック（マスターアカウント以外）
+    # マスターアカウントの場合は選択店舗を取得
+    selected_store = None
+    target_user = request.user
+    
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_store = User.objects.get(id=selected_store_id, is_master=False)
+                target_user = selected_store
+            except User.DoesNotExist:
+                messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+                return redirect('seo_ranking:rpp_keyword_list')
+        else:
+            messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+            return redirect('seo_ranking:rpp_keyword_list')
+    
+    # キーワード登録数チェック
     if not request.user.is_master:
-        current_count = RPPKeyword.objects.filter(user=request.user).count()
+        current_count = RPPKeyword.objects.filter(user=target_user).count()
         if current_count >= 10:
             messages.error(request, 'RPPキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
             return redirect('seo_ranking:rpp_keyword_list')
+    elif request.user.is_master and selected_store:
+        # マスターアカウントが選択店舗にキーワードを登録する場合も制限チェック
+        current_count = RPPKeyword.objects.filter(user=selected_store).count()
+        if current_count >= 10:
+            messages.error(request, f'店舗「{selected_store.company_name}」のRPPキーワード登録数の上限（10個）に達しています。')
+            return redirect('seo_ranking:rpp_keyword_list')
     
     if request.method == 'POST':
-        form = RPPKeywordForm(request.POST, user=request.user)
+        form = RPPKeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
             # 再度チェック（並行アクセス対策）
-            if not request.user.is_master:
-                current_count = RPPKeyword.objects.filter(user=request.user).count()
-                if current_count >= 10:
-                    messages.error(request, 'RPPキーワード登録数の上限（10個）に達しています。')
-                    return redirect('seo_ranking:rpp_keyword_list')
+            current_count = RPPKeyword.objects.filter(user=target_user).count()
+            if current_count >= 10:
+                store_name = selected_store.company_name if selected_store else "あなた"
+                messages.error(request, f'{store_name}のRPPキーワード登録数の上限（10個）に達しています。')
+                return redirect('seo_ranking:rpp_keyword_list')
             
             keyword = form.save(commit=False)
-            keyword.user = request.user
+            keyword.user = target_user
             keyword.save()
-            messages.success(request, f'RPPキーワード "{keyword.keyword}" を登録しました。')
+            
+            store_name = selected_store.company_name if selected_store else "あなた"
+            messages.success(request, f'{store_name}のRPPキーワード "{keyword.keyword}" を登録しました。')
             return redirect('seo_ranking:rpp_keyword_list')
     else:
-        form = RPPKeywordForm(user=request.user)
+        form = RPPKeywordForm(user=request.user, selected_store=selected_store)
     
     return render(request, 'seo_ranking/rpp_keyword_form.html', {
         'form': form,
+        'selected_store': selected_store,
         'title': 'RPPキーワード登録',
         'bulk_mode': False,
     })
@@ -105,15 +159,33 @@ def rpp_keyword_create(request):
 @login_required
 def rpp_keyword_bulk_create(request):
     """RPPキーワード一括作成"""
-    # キーワード登録数チェック（マスターアカウント以外）
-    if not request.user.is_master:
-        current_count = RPPKeyword.objects.filter(user=request.user).count()
-        if current_count >= 10:
-            messages.error(request, 'RPPキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
+    # マスターアカウントの場合は選択店舗を取得
+    selected_store = None
+    target_user = request.user
+    
+    if request.user.is_master:
+        selected_store_id = request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                from accounts.models import User
+                selected_store = User.objects.get(id=selected_store_id, is_master=False)
+                target_user = selected_store
+            except User.DoesNotExist:
+                messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
+                return redirect('seo_ranking:rpp_keyword_list')
+        else:
+            messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
             return redirect('seo_ranking:rpp_keyword_list')
     
+    # キーワード登録数チェック
+    current_count = RPPKeyword.objects.filter(user=target_user).count()
+    if current_count >= 10:
+        store_name = selected_store.company_name if selected_store else "あなた"
+        messages.error(request, f'{store_name}のRPPキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
+        return redirect('seo_ranking:rpp_keyword_list')
+    
     if request.method == 'POST':
-        form = BulkRPPKeywordForm(request.POST, user=request.user)
+        form = BulkRPPKeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
             keywords_list = form.cleaned_data['keywords']
             rakuten_shop_id = form.cleaned_data['rakuten_shop_id']
@@ -130,7 +202,7 @@ def rpp_keyword_bulk_create(request):
             
             # 重複チェック用に既存キーワードを取得
             existing_keywords = set(
-                RPPKeyword.objects.filter(user=request.user, rakuten_shop_id=rakuten_shop_id)
+                RPPKeyword.objects.filter(user=target_user, rakuten_shop_id=rakuten_shop_id)
                 .values_list('keyword', flat=True)
             )
             
@@ -138,24 +210,23 @@ def rpp_keyword_bulk_create(request):
             created_count = 0
             skipped_count = 0
             
-            # 現在の登録数を取得（マスターアカウント以外のみチェック）
-            if not request.user.is_master:
-                current_count = RPPKeyword.objects.filter(user=request.user).count()
+            # 現在の登録数を取得
+            current_count = RPPKeyword.objects.filter(user=target_user).count()
             
             for keyword_text in keywords_list:
                 if keyword_text in existing_keywords:
                     skipped_count += 1
                     continue
                 
-                # 登録数制限チェック（マスターアカウント以外）
-                if not request.user.is_master:
-                    if current_count >= 10:
-                        messages.error(request, f'RPPキーワード登録数の上限（10個）に達したため、"{keyword_text}" 以降の登録を中断しました。')
-                        break
+                # 登録数制限チェック（各店舗10個まで）
+                if current_count >= 10:
+                    store_name = selected_store.company_name if selected_store else "あなた"
+                    messages.error(request, f'{store_name}のRPPキーワード登録数の上限（10個）に達したため、"{keyword_text}" 以降の登録を中断しました。')
+                    break
                 
                 try:
                     RPPKeyword.objects.create(
-                        user=request.user,
+                        user=target_user,
                         keyword=keyword_text,
                         rakuten_shop_id=rakuten_shop_id,
                         target_product_url=target_product_url,
@@ -163,55 +234,68 @@ def rpp_keyword_bulk_create(request):
                         is_active=is_active
                     )
                     created_count += 1
-                    if not request.user.is_master:
-                        current_count += 1
+                    current_count += 1
                 except Exception as e:
                     logger.error(f'Error creating RPP keyword "{keyword_text}": {e}')
                     skipped_count += 1
             
             # 結果メッセージ
+            store_name = selected_store.company_name if selected_store else "あなた"
             if created_count > 0:
-                messages.success(request, f'{created_count}個のRPPキーワードを登録しました。')
+                messages.success(request, f'{store_name}に{created_count}個のRPPキーワードを登録しました。')
             if skipped_count > 0:
                 messages.warning(request, f'{skipped_count}個のキーワードはスキップされました（重複または処理エラー）。')
             
             return redirect('seo_ranking:rpp_keyword_list')
     else:
-        form = BulkRPPKeywordForm(user=request.user)
+        form = BulkRPPKeywordForm(user=request.user, selected_store=selected_store)
     
     return render(request, 'seo_ranking/rpp_keyword_form.html', {
         'form': form,
         'title': 'RPPキーワード一括登録',
         'bulk_mode': True,
+        'selected_store': selected_store,
     })
 
 
 @login_required
 def rpp_keyword_edit(request, keyword_id):
     """RPPキーワード編集"""
-    keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id)
+        # マスターアカウントの場合、キーワードの所有者を選択店舗として設定
+        selected_store = keyword.user if not keyword.user.is_master else None
+    else:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
+        selected_store = None
     
     if request.method == 'POST':
-        form = RPPKeywordForm(request.POST, instance=keyword, user=request.user)
+        form = RPPKeywordForm(request.POST, instance=keyword, user=request.user, selected_store=selected_store)
         if form.is_valid():
             form.save()
             messages.success(request, f'RPPキーワード "{keyword.keyword}" を更新しました。')
             return redirect('seo_ranking:rpp_keyword_list')
     else:
-        form = RPPKeywordForm(instance=keyword, user=request.user)
+        form = RPPKeywordForm(instance=keyword, user=request.user, selected_store=selected_store)
     
     return render(request, 'seo_ranking/rpp_keyword_form.html', {
         'form': form,
         'title': 'RPPキーワード編集',
         'keyword': keyword,
         'is_edit': True,
+        'selected_store': selected_store,
     })
 
 
 @login_required
 def rpp_keyword_delete(request, keyword_id):
     """RPPキーワード削除"""
-    keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
     
     if request.method == 'POST':
         keyword_name = keyword.keyword
@@ -228,7 +312,11 @@ def rpp_keyword_delete(request, keyword_id):
 @require_http_methods(["POST"])
 def rpp_keyword_search(request, keyword_id):
     """RPPキーワード検索実行"""
-    keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
     
     # サブスクリプションチェック
     if not request.user.has_active_subscription():
@@ -315,14 +403,18 @@ def rpp_keyword_search(request, keyword_id):
     
     except Exception as e:
         logger.error(f'RPP search error for keyword {keyword_id}: {e}')
-        messages.error(request, f'RPP検索中にエラーが発生しました: {str(e)}')
-        return JsonResponse({'success': False, 'message': str(e)})
+        messages.error(request, 'RPP検索中にエラーが発生しました。しばらくしてから再度お試しください。')
+        return JsonResponse({'success': False, 'message': '検索処理でエラーが発生しました'})
 
 
 @login_required
 def rpp_results(request, keyword_id):
     """RPP順位結果履歴"""
-    keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
+    # マスターアカウントの場合は全店舗のキーワードにアクセス可能
+    if request.user.is_master:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id)
+    else:
+        keyword = get_object_or_404(RPPKeyword, id=keyword_id, user=request.user)
     
     # 順位結果を取得
     results = RPPResult.objects.filter(keyword=keyword).order_by('-checked_at')
@@ -358,7 +450,11 @@ def rpp_results(request, keyword_id):
 @login_required
 def rpp_detail(request, result_id):
     """RPP結果詳細"""
-    result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
+    # マスターアカウントの場合は全店舗の結果にアクセス可能
+    if request.user.is_master:
+        result = get_object_or_404(RPPResult, id=result_id)
+    else:
+        result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
     
     # 上位20広告を取得
     top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')
@@ -372,7 +468,11 @@ def rpp_detail(request, result_id):
 @login_required
 def export_rpp_csv(request, result_id):
     """RPP結果詳細をCSVでエクスポート"""
-    result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
+    # マスターアカウントの場合は全店舗の結果にアクセス可能
+    if request.user.is_master:
+        result = get_object_or_404(RPPResult, id=result_id)
+    else:
+        result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
     
     # 上位広告を取得
     top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')
@@ -433,7 +533,11 @@ def export_rpp_csv(request, result_id):
 @login_required
 def rpp_search_logs(request):
     """RPP検索ログ一覧"""
-    logs = RPPSearchLog.objects.filter(user=request.user).order_by('-created_at')
+    # マスターアカウントの場合は全店舗のログを表示（マスター含む）
+    if request.user.is_master:
+        logs = RPPSearchLog.objects.all().order_by('-created_at')
+    else:
+        logs = RPPSearchLog.objects.filter(user=request.user).order_by('-created_at')
     
     # フィルタ
     success_filter = request.GET.get('success', '')
@@ -542,12 +646,15 @@ def rpp_all_data(request):
 def update_rpp_memo(request, result_id):
     """RPP結果のメモを更新"""
     try:
-        # RPP結果を取得（ユーザーが所有するもののみ）
-        rpp_result = get_object_or_404(
-            RPPResult,
-            id=result_id,
-            keyword__user=request.user
-        )
+        # RPP結果を取得（マスターアカウントの場合は全店舗アクセス可能）
+        if request.user.is_master:
+            rpp_result = get_object_or_404(RPPResult, id=result_id)
+        else:
+            rpp_result = get_object_or_404(
+                RPPResult,
+                id=result_id,
+                keyword__user=request.user
+            )
         
         # POSTデータからメモを取得
         memo_text = request.POST.get('memo', '').strip()
@@ -575,9 +682,13 @@ def update_rpp_memo(request, result_id):
         referer = request.META.get('HTTP_REFERER', '')
         if 'rpp/results' in referer and 'rpp/detail' not in referer:
             try:
-                rpp_result = RPPResult.objects.get(id=result_id, keyword__user=request.user)
+                # マスターアカウントの場合は全店舗の結果にアクセス可能
+                if request.user.is_master:
+                    rpp_result = RPPResult.objects.get(id=result_id)
+                else:
+                    rpp_result = RPPResult.objects.get(id=result_id, keyword__user=request.user)
                 return redirect('seo_ranking:rpp_results', keyword_id=rpp_result.keyword.id)
-            except:
+            except (RPPResult.DoesNotExist, ValueError):
                 pass
         return redirect('seo_ranking:rpp_detail', result_id=result_id)
 
@@ -589,16 +700,31 @@ def rpp_bulk_search(request):
     import json
     
     try:
-        # 実行制限チェック
-        if not RPPBulkSearchLog.can_execute_today(request.user):
+        user = request.user
+        
+        # マスターアカウントの場合は選択店舗のキーワードを取得
+        target_user = user
+        if user.is_master:
+            selected_store_id = request.session.get('selected_store_id')
+            if selected_store_id:
+                try:
+                    from accounts.models import User
+                    target_user = User.objects.get(id=selected_store_id, is_master=False)
+                except User.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': '店舗が選択されていません。'})
+            else:
+                return JsonResponse({'success': False, 'error': '店舗が選択されていません。店舗を選択してから実行してください。'})
+        
+        # 実行制限チェック（マスターアカウント以外）
+        if not user.is_master and not RPPBulkSearchLog.can_execute_today(target_user):
             return JsonResponse({
                 'success': False,
-                'message': '本日は既に一括検索を実行済みです。マスターアカウント以外は1日1回のみ実行可能です。'
+                'message': '本日は既に一括検索を実行済みです。1日1回のみ実行可能です。'
             }, status=403)
         
         # 実行対象キーワードを取得
         keywords = RPPKeyword.objects.filter(
-            user=request.user,
+            user=target_user,
             is_active=True
         ).order_by('keyword')
         
@@ -610,11 +736,12 @@ def rpp_bulk_search(request):
         
         # 実行ログを作成
         bulk_log = RPPBulkSearchLog.objects.create(
-            user=request.user,
+            user=target_user,
             keywords_count=keywords.count()
         )
         
-        logger.info(f"RPP一括検索開始: {request.user.email} - {keywords.count()}件")
+        store_name = target_user.company_name if user.is_master else target_user.email
+        logger.info(f"RPP一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件")
         
         start_time = time.time()
         success_count = 0
@@ -663,7 +790,7 @@ def rpp_bulk_search(request):
                     
                     # 検索ログを保存
                     RPPSearchLog.objects.create(
-                        user=request.user,
+                        user=target_user,
                         keyword=keyword.keyword,
                         execution_time=result['execution_time'],
                         pages_checked=3,
@@ -677,7 +804,7 @@ def rpp_bulk_search(request):
                 else:
                     # エラーの場合もログに記録
                     RPPSearchLog.objects.create(
-                        user=request.user,
+                        user=target_user,
                         keyword=keyword.keyword,
                         execution_time=result['execution_time'],
                         pages_checked=0,
@@ -695,7 +822,7 @@ def rpp_bulk_search(request):
                 
                 # エラーログを記録
                 RPPSearchLog.objects.create(
-                    user=request.user,
+                    user=target_user,
                     keyword=keyword.keyword,
                     execution_time=0,
                     pages_checked=0,
@@ -714,7 +841,7 @@ def rpp_bulk_search(request):
         bulk_log.is_completed = True
         bulk_log.save()
         
-        logger.info(f"RPP一括検索完了: {request.user.email} - 成功: {success_count}, エラー: {error_count}, 時間: {total_execution_time:.2f}秒")
+        logger.info(f"RPP一括検索完了: user {target_user.id} ({store_name}) - 成功: {success_count}, エラー: {error_count}, 時間: {total_execution_time:.2f}秒")
         
         return JsonResponse({
             'success': True,

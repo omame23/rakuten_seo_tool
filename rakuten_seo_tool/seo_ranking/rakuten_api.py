@@ -362,7 +362,7 @@ class RakutenSearchAPI:
                     logger.error(f"Rakuten API 400 error for keyword '{keyword}': {error_data}")
                     # 楽天APIの400エラーの場合、空の結果を返す
                     return {'Items': [], 'hits': 0, 'page': page, 'first': 1, 'last': 1}
-                except:
+                except (json.JSONDecodeError, KeyError):
                     logger.error(f"Rakuten API 400 error for keyword '{keyword}': {response.text}")
                     return {'Items': [], 'hits': 0, 'page': page, 'first': 1, 'last': 1}
             

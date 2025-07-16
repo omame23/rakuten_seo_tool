@@ -29,8 +29,26 @@ class KeywordForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user', None)  # ユーザー情報を受け取る
+        self.user = kwargs.pop('user', None)
+        self.selected_store = kwargs.pop('selected_store', None)
         super().__init__(*args, **kwargs)
+        
+        # マスターアカウントが選択店舗でキーワードを登録する場合
+        if self.user and self.user.is_master and self.selected_store:
+            # 楽天店舗IDを自動設定して読み取り専用にする
+            self.fields['rakuten_shop_id'].initial = self.selected_store.rakuten_shop_id
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light',
+                'title': f'選択店舗: {self.selected_store.company_name}'
+            })
+        elif self.user and not self.user.is_master:
+            # 通常ユーザーは自分の店舗IDを自動設定
+            self.fields['rakuten_shop_id'].initial = self.user.rakuten_shop_id
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light'
+            })
         self.fields['keyword'].help_text = '楽天市場で検索するキーワードを入力してください'
         self.fields['rakuten_shop_id'].help_text = '順位を確認したい楽天店舗のIDを入力してください'
         self.fields['target_product_url'].help_text = '特定の商品URLを指定する場合は入力してください（オプション）'
@@ -127,16 +145,29 @@ class BulkKeywordForm(forms.Form):
     
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
+        self.selected_store = kwargs.pop('selected_store', None)
         super().__init__(*args, **kwargs)
         
-        # マスターアカウント以外は店舗IDを固定
-        if self.user and not self.user.is_master:
-            self.fields['rakuten_shop_id'].widget = forms.HiddenInput()
+        # マスターアカウントが選択店舗でキーワードを登録する場合
+        if self.user and self.user.is_master and self.selected_store:
+            # 楽天店舗IDを自動設定して読み取り専用にする
+            self.fields['rakuten_shop_id'].initial = self.selected_store.rakuten_shop_id
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light',
+                'title': f'選択店舗: {self.selected_store.company_name}'
+            })
+            self.fields['keywords'].help_text = '改行で区切って複数のキーワードを入力できます（最大10個まで）'
+        elif self.user and not self.user.is_master:
+            # 通常ユーザーは自分の店舗IDを自動設定
             self.fields['rakuten_shop_id'].initial = self.user.rakuten_shop_id
-            # 一般ユーザーは最大10個まで
+            self.fields['rakuten_shop_id'].widget.attrs.update({
+                'readonly': True,
+                'class': 'form-control bg-light'
+            })
             self.fields['keywords'].help_text = '改行で区切って複数のキーワードを入力できます（最大10個まで）'
         else:
-            # マスターアカウントは最大50個まで
+            # マスターアカウントで店舗未選択の場合
             self.fields['keywords'].help_text = '改行で区切って複数のキーワードを入力できます（最大50個まで）'
     
     def clean_keywords(self):

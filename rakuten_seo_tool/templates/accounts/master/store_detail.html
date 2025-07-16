@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block title %}{{ store.company_name }} - 店舗詳細 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-store"></i> {{ store.company_name }}
+                    <span class="badge bg-danger ms-2">店舗詳細</span>
+                </h1>
+                <div>
+                    <a href="{% url 'accounts:master_store_update' store.id %}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> 編集
+                    </a>
+                    <a href="{% url 'accounts:master_store_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> 一覧に戻る
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 店舗基本情報 -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> 基本情報</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width: 30%;">楽天店舗ID:</th>
+                                    <td>
+                                        {% if store.rakuten_shop_id %}
+                                            <a href="{% url 'accounts:master_view_store_dashboard' store.id %}" 
+                                               class="text-decoration-none" 
+                                               title="この店舗のダッシュボードを表示">
+                                                <code class="text-primary">{{ store.rakuten_shop_id }}</code>
+                                                <i class="fas fa-external-link-alt ms-1 small text-muted"></i>
+                                            </a>
+                                        {% else %}
+                                            <code class="text-muted">-</code>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">会社名:</th>
+                                    <td><strong>{{ store.company_name }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">担当者名:</th>
+                                    <td>{{ store.contact_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">メールアドレス:</th>
+                                    <td>{{ store.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">電話番号:</th>
+                                    <td>{{ store.phone_number }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">登録日時:</th>
+                                    <td>{{ store.date_joined|date:"Y年m月d日 H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ステータス情報 -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> ステータス</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width: 40%;">アカウント状態:</th>
+                                    <td>
+                                        {% if store.is_active %}
+                                            <span class="badge bg-success">有効</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">無効</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">サブスクリプション:</th>
+                                    <td>
+                                        {% if store.subscription_status == 'active' %}
+                                            <span class="badge bg-success">有効</span>
+                                        {% elif store.subscription_status == 'trial' %}
+                                            <span class="badge bg-info">トライアル</span>
+                                        {% elif store.subscription_status == 'past_due' %}
+                                            <span class="badge bg-warning">支払い遅延</span>
+                                        {% elif store.subscription_status == 'canceled' %}
+                                            <span class="badge bg-secondary">キャンセル</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">無効</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">トライアル終了:</th>
+                                    <td>
+                                        {% if store.trial_end_date %}
+                                            {{ store.trial_end_date|date:"Y年m月d日" }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">自動検索:</th>
+                                    <td>
+                                        {% if store.auto_search_enabled %}
+                                            <span class="badge bg-success">有効</span>
+                                            <small class="text-muted">({{ store.auto_search_time }})</small>
+                                        {% else %}
+                                            <span class="badge bg-secondary">無効</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 利用統計 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="text-primary">{{ seo_keyword_count }}</h4>
+                            <p class="mb-0">SEOキーワード数</p>
+                            <small class="text-muted">/ 10</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="text-info">{{ rpp_keyword_count }}</h4>
+                            <p class="mb-0">RPPキーワード数</p>
+                            <small class="text-muted">/ 10</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="text-success">{{ latest_rankings|length }}</h4>
+                            <p class="mb-0">最新順位結果</p>
+                            <small class="text-muted">直近5件</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h4 class="text-warning">{{ latest_rpp_results|length }}</h4>
+                            <p class="mb-0">RPP結果</p>
+                            <small class="text-muted">直近5件</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- 最新SEO順位結果 -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-search"></i> 最新SEO順位結果
+                                <small class="text-muted">(直近5件)</small>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if latest_rankings %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>キーワード</th>
+                                                <th>順位</th>
+                                                <th>チェック日時</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for ranking in latest_rankings %}
+                                            <tr>
+                                                <td>
+                                                    <small>{{ ranking.keyword.keyword }}</small>
+                                                </td>
+                                                <td>
+                                                    {% if ranking.is_found %}
+                                                        <span class="badge bg-success">{{ ranking.rank }}位</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">圏外</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {{ ranking.checked_at|date:"m/d H:i" }}
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center py-3">
+                                    順位結果がありません
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最新RPP結果 -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-ad"></i> 最新RPP結果
+                                <small class="text-muted">(直近5件)</small>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if latest_rpp_results %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>キーワード</th>
+                                                <th>掲載数</th>
+                                                <th>チェック日時</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for rpp in latest_rpp_results %}
+                                            <tr>
+                                                <td>
+                                                    <small>{{ rpp.keyword.keyword }}</small>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ rpp.ads_found }}件</span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {{ rpp.checked_at|date:"m/d H:i" }}
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center py-3">
+                                    RPP結果がありません
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アクション -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> 操作</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'accounts:master_view_store_dashboard' store.id %}" 
+                                   class="btn btn-success">
+                                    <i class="fas fa-tachometer-alt"></i> ダッシュボード表示
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'seo_ranking:keyword_list' %}?store_id={{ store.id }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> SEOキーワード管理
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'seo_ranking:rpp_keyword_list' %}?store_id={{ store.id }}" 
+                                   class="btn btn-outline-info">
+                                    <i class="fas fa-ad"></i> RPPキーワード管理
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <button class="btn btn-outline-danger" onclick="confirmDelete()">
+                                    <i class="fas fa-trash"></i> 店舗削除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete() {
+    if (confirm('この店舗を削除しますか？\n\n※関連するキーワードや順位データも全て削除されます。')) {
+        window.location.href = '{% url "accounts:master_store_delete" store.id %}';
+    }
+}
+</script>
+{% endblock %}
