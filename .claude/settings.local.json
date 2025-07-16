@@ -26,7 +26,8 @@
       "Bash(chmod:*)",
       "Bash(mkdir:*)",
       "Bash(pkill:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
