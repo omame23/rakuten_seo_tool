@@ -317,9 +317,20 @@ function executeBulkRPPSearch() {
         },
         body: JSON.stringify({})
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return response.json();
+    })
     .then(data => {
         hideBulkSearchProgress();
+        console.log('Response data:', data);
+        
         if (data.success) {
             alert(`一括検索が完了しました!\n\n成功: ${data.success_count}件\nエラー: ${data.error_count}件\n実行時間: ${data.execution_time}秒`);
             location.reload();
@@ -331,8 +342,9 @@ function executeBulkRPPSearch() {
     })
     .catch(error => {
         hideBulkSearchProgress();
-        console.error('Error:', error);
-        alert('通信エラーが発生しました');
+        console.error('詳細エラー:', error);
+        console.error('エラーメッセージ:', error.message);
+        alert(`通信エラーが発生しました: ${error.message}`);
         button.disabled = false;
         button.innerHTML = originalContent;
     });
