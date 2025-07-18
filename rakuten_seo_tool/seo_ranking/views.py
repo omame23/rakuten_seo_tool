@@ -28,7 +28,7 @@ def keyword_list(request):
         if selected_store_id:
             try:
                 from accounts.models import User
-                selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                selected_user = User.objects.get(id=selected_store_id, is_invited_user=True)
                 keywords = Keyword.objects.filter(user=selected_user).order_by('-created_at')
                 target_user = selected_user
             except User.DoesNotExist:
