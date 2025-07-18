@@ -32,12 +32,16 @@ def keyword_list(request):
                 keywords = Keyword.objects.filter(user=selected_user).order_by('-created_at')
                 target_user = selected_user
             except User.DoesNotExist:
-                # 選択店舗が見つからない場合は全店舗のキーワード（マスター含む）
-                keywords = Keyword.objects.all().order_by('-created_at')
+                # 選択店舗が見つからない場合は招待ユーザーのキーワードのみ
+                from accounts.models import User
+                invited_users = User.objects.filter(is_invited_user=True)
+                keywords = Keyword.objects.filter(user__in=invited_users).order_by('-created_at')
                 target_user = None
         else:
-            # 全店舗のキーワード（マスター含む）
-            keywords = Keyword.objects.all().order_by('-created_at')
+            # 招待ユーザーのキーワードのみ
+            from accounts.models import User
+            invited_users = User.objects.filter(is_invited_user=True)
+            keywords = Keyword.objects.filter(user__in=invited_users).order_by('-created_at')
             target_user = None
     else:
         keywords = Keyword.objects.filter(user=request.user).order_by('-created_at')
@@ -68,7 +72,10 @@ def keyword_list(request):
         if target_user:
             total_keywords = Keyword.objects.filter(user=target_user).count()
         else:
-            total_keywords = Keyword.objects.all().count()
+            # 招待ユーザーのキーワード数のみ
+            from accounts.models import User
+            invited_users = User.objects.filter(is_invited_user=True)
+            total_keywords = Keyword.objects.filter(user__in=invited_users).count()
         keyword_limit = None  # マスターアカウントは制限なし
     else:
         total_keywords = Keyword.objects.filter(user=request.user).count()
