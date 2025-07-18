@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 import logging
 import time
 
-from .models import Keyword, RankingResult, TopProduct, SearchLog
+from .models import Keyword, RankingResult, TopProduct, SearchLog, RPPKeyword, RPPResult, RPPAd, RPPBulkSearchLog
 from .rakuten_api import RakutenSearchManager
+from .rpp_scraper import scrape_rpp_ranking
 from accounts.models import User
 
 logger = logging.getLogger(__name__)
@@ -125,6 +126,133 @@ def execute_user_auto_search(user_id):
     except Exception as e:
         logger.error(f"Auto search failed for user {user_id}: {e}")
         return {'success': False, 'error': str(e)}
+
+
+@shared_task
+def execute_rpp_bulk_search(user_id, bulk_log_id):
+    """
+    RPP一括検索をバックグラウンドで実行するタスク
+    """
+    try:
+        from accounts.models import User
+        user = User.objects.get(id=user_id)
+        bulk_log = RPPBulkSearchLog.objects.get(id=bulk_log_id)
+        
+        logger.info(f"RPP一括検索バックグラウンド開始: user {user.id} - {bulk_log.keywords_count}件")
+        
+        # 実行対象キーワードを取得
+        keywords = RPPKeyword.objects.filter(
+            user=user,
+            is_active=True
+        ).order_by('keyword')
+        
+        if not keywords.exists():
+            bulk_log.is_completed = False
+            bulk_log.save()
+            return
+        
+        start_time = time.time()
+        success_count = 0
+        error_count = 0
+        
+        # 各キーワードを順次実行
+        total_keywords = keywords.count()
+        for i, keyword in enumerate(keywords, 1):
+            try:
+                logger.info(f"RPP検索実行中: {keyword.keyword} ({keyword.rakuten_shop_id}) - {i}/{total_keywords}")
+                
+                # 長時間実行の場合は間隔を空ける
+                if i > 1 and total_keywords > 20:
+                    time.sleep(3)  # 3秒間隔
+                elif i > 1 and total_keywords > 10:
+                    time.sleep(2)  # 2秒間隔
+                elif i > 1:
+                    time.sleep(1)  # 1秒間隔
+                
+                # RPP順位検索を実行
+                result = scrape_rpp_ranking(
+                    keyword=keyword.keyword,
+                    target_shop_id=keyword.rakuten_shop_id,
+                    target_product_url=keyword.target_product_url
+                )
+                
+                if result['success']:
+                    # 結果を保存
+                    rpp_result = RPPResult.objects.create(
+                        keyword=keyword,
+                        rank=result['rank'],
+                        total_ads=result['total_ads'],
+                        pages_checked=3,
+                        is_found=result['is_found'],
+                        error_message=result['error']
+                    )
+                    
+                    # 広告データを保存
+                    for ad_data in result['ads']:
+                        RPPAd.objects.create(
+                            result=rpp_result,
+                            position=ad_data.get('rank', 0),
+                            product_name=ad_data.get('product_name', ''),
+                            product_url=ad_data.get('product_url', ''),
+                            product_id=ad_data.get('product_id', ''),
+                            price=ad_data.get('price'),
+                            shop_name=ad_data.get('shop_name', ''),
+                            image_url=ad_data.get('image_url', ''),
+                            catchcopy=ad_data.get('catchcopy', ''),
+                            page_number=ad_data.get('page_number', 1),
+                            position_on_page=ad_data.get('position_on_page', 0)
+                        )
+                    
+                    success_count += 1
+                    logger.info(f"RPP検索成功: {keyword.keyword} - 順位: {result['rank']}")
+                else:
+                    # エラーの場合も結果を保存
+                    RPPResult.objects.create(
+                        keyword=keyword,
+                        rank=None,
+                        total_ads=0,
+                        pages_checked=0,
+                        is_found=False,
+                        error_message=result['error']
+                    )
+                    error_count += 1
+                    logger.error(f"RPP検索失敗: {keyword.keyword} - エラー: {result['error']}")
+                
+            except Exception as e:
+                error_count += 1
+                logger.error(f"RPP検索エラー: {keyword.keyword} - {str(e)}")
+                
+                # エラーの場合も結果を保存
+                try:
+                    RPPResult.objects.create(
+                        keyword=keyword,
+                        rank=None,
+                        total_ads=0,
+                        pages_checked=0,
+                        is_found=False,
+                        error_message=str(e)
+                    )
+                except Exception as save_error:
+                    logger.error(f"結果保存エラー: {save_error}")
+        
+        # 実行ログを更新
+        execution_time = time.time() - start_time
+        bulk_log.is_completed = True
+        bulk_log.success_count = success_count
+        bulk_log.error_count = error_count
+        bulk_log.total_execution_time = execution_time
+        bulk_log.save()
+        
+        logger.info(f"RPP一括検索完了: user {user.id} - 成功: {success_count}, エラー: {error_count}, 実行時間: {execution_time:.2f}秒")
+        
+    except Exception as e:
+        logger.error(f"RPP一括検索タスクエラー: {str(e)}")
+        try:
+            bulk_log = RPPBulkSearchLog.objects.get(id=bulk_log_id)
+            bulk_log.is_completed = False
+            bulk_log.save()
+        except:
+            pass
 
 
 @shared_task

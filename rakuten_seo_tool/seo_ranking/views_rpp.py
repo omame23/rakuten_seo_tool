@@ -787,121 +787,20 @@ def rpp_bulk_search(request):
         store_name = target_user.company_name if user.is_master else target_user.email
         logger.info(f"RPP一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件")
         
-        start_time = time.time()
-        success_count = 0
-        error_count = 0
+        # バックグラウンドタスクとして実行
+        from .tasks import execute_rpp_bulk_search
+        task = execute_rpp_bulk_search.delay(target_user.id, bulk_log.id)
         
-        # 各キーワードを順次実行（プログレス表示対応）
-        total_keywords = keywords.count()
-        for i, keyword in enumerate(keywords, 1):
-            try:
-                logger.info(f"RPP検索実行中: {keyword.keyword} ({keyword.rakuten_shop_id}) - {i}/{total_keywords}")
-                
-                # 長時間実行の場合は間隔を空ける
-                if i > 1 and total_keywords > 20:
-                    time.sleep(3)  # 3秒間隔
-                elif i > 1 and total_keywords > 10:
-                    time.sleep(2)  # 2秒間隔
-                elif i > 1:
-                    time.sleep(1)  # 1秒間隔
-                
-                # RPP順位検索を実行
-                result = scrape_rpp_ranking(
-                    keyword=keyword.keyword,
-                    target_shop_id=keyword.rakuten_shop_id,
-                    target_product_url=keyword.target_product_url
-                )
-                
-                if result['success']:
-                    # 結果を保存
-                    rpp_result = RPPResult.objects.create(
-                        keyword=keyword,
-                        rank=result['rank'],
-                        total_ads=result['total_ads'],
-                        pages_checked=3,  # デフォルト3ページ
-                        is_found=result['is_found'],
-                        error_message=result['error']
-                    )
-                    
-                    # 広告データを保存
-                    for ad_data in result['ads']:
-                        RPPAd.objects.create(
-                            rpp_result=rpp_result,
-                            rank=ad_data['rank'],
-                            product_name=ad_data['product_name'],
-                            catchcopy=ad_data.get('catchcopy', ''),
-                            product_url=ad_data['product_url'],
-                            product_id=ad_data.get('product_id', ''),
-                            shop_name=ad_data['shop_name'],
-                            shop_id=ad_data['shop_name'],
-                            price=ad_data.get('price'),
-                            image_url=ad_data.get('image_url', ''),
-                            position_on_page=ad_data['position_on_page'],
-                            page_number=ad_data['page_number'],
-                            is_own_product=(ad_data['shop_name'].lower() == keyword.rakuten_shop_id.lower())
-                        )
-                    
-                    # 検索ログを保存
-                    RPPSearchLog.objects.create(
-                        user=target_user,
-                        keyword=keyword.keyword,
-                        execution_time=result['execution_time'],
-                        pages_checked=3,
-                        ads_found=result['total_ads'],
-                        success=True
-                    )
-                    
-                    success_count += 1
-                    logger.info(f"RPP検索成功: {keyword.keyword} - 順位: {result['rank'] or '圏外'}")
-                    
-                else:
-                    # エラーの場合もログに記録
-                    RPPSearchLog.objects.create(
-                        user=target_user,
-                        keyword=keyword.keyword,
-                        execution_time=result['execution_time'],
-                        pages_checked=0,
-                        ads_found=0,
-                        success=False,
-                        error_details=result['error']
-                    )
-                    
-                    error_count += 1
-                    logger.error(f"RPP検索エラー: {keyword.keyword} - {result['error']}")
-                
-            except Exception as e:
-                error_count += 1
-                logger.error(f"RPP検索例外: {keyword.keyword} - {e}")
-                
-                # エラーログを記録
-                RPPSearchLog.objects.create(
-                    user=target_user,
-                    keyword=keyword.keyword,
-                    execution_time=0,
-                    pages_checked=0,
-                    ads_found=0,
-                    success=False,
-                    error_details=str(e)
-                )
+        # 最終一括検索日を更新
+        target_user.update_last_bulk_search_date()
         
-        # 実行時間計算
-        total_execution_time = time.time() - start_time
-        
-        # 実行ログを更新
-        bulk_log.success_count = success_count
-        bulk_log.error_count = error_count
-        bulk_log.total_execution_time = total_execution_time
-        bulk_log.is_completed = True
-        bulk_log.save()
-        
-        logger.info(f"RPP一括検索完了: user {target_user.id} ({store_name}) - 成功: {success_count}, エラー: {error_count}, 時間: {total_execution_time:.2f}秒")
+        logger.info(f"RPP一括検索タスク開始: user {target_user.id} - タスクID: {task.id}")
         
         return JsonResponse({
             'success': True,
-            'success_count': success_count,
-            'error_count': error_count,
-            'execution_time': round(total_execution_time, 2),
-            'total_keywords': keywords.count()
+            'message': 'RPP一括検索をバックグラウンドで開始しました。完了まで少々お待ちください。',
+            'task_id': task.id,
+            'bulk_log_id': bulk_log.id
         })
         
     except Exception as e:
