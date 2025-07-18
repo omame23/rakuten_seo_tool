@@ -375,8 +375,8 @@ def rpp_keyword_search(request, keyword_id):
                         is_own = True
                 
                 RPPAd.objects.create(
-                    result=rpp_result,  # field名をresultに修正
-                    position=ad.get('rank', i),
+                    rpp_result=rpp_result,
+                    rank=ad.get('rank', i),
                     product_name=ad.get('product_name', ''),
                     catchcopy=ad.get('catchcopy', ''),
                     product_url=ad.get('product_url', ''),
