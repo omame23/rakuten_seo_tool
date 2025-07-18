@@ -79,7 +79,7 @@ def keyword_list(request):
         keyword_limit = None  # マスターアカウントは制限なし
     else:
         total_keywords = Keyword.objects.filter(user=request.user).count()
-        keyword_limit = 10
+        keyword_limit = None if request.user.is_invited_user else 10
     
     return render(request, 'seo_ranking/keyword_list.html', {
         'page_obj': page_obj,
@@ -113,13 +113,13 @@ def keyword_create(request):
             return redirect('seo_ranking:keyword_list')
     
     # キーワード登録数チェック
-    if not request.user.is_master:
+    if not request.user.is_master and not request.user.is_invited_user:
         current_count = Keyword.objects.filter(user=target_user).count()
         if current_count >= 10:
             messages.error(request, 'キーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
             return redirect('seo_ranking:keyword_list')
-    elif request.user.is_master and selected_store:
-        # マスターアカウントが選択店舗にキーワードを登録する場合も制限チェック
+    elif request.user.is_master and selected_store and not selected_store.is_invited_user:
+        # マスターアカウントが選択店舗にキーワードを登録する場合も制限チェック（招待ユーザー除く）
         current_count = Keyword.objects.filter(user=selected_store).count()
         if current_count >= 10:
             messages.error(request, f'店舗「{selected_store.company_name}」のキーワード登録数の上限（10個）に達しています。')
@@ -128,12 +128,13 @@ def keyword_create(request):
     if request.method == 'POST':
         form = KeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
-            # 再度チェック（並行アクセス対策）
-            current_count = Keyword.objects.filter(user=target_user).count()
-            if current_count >= 10:
-                store_name = selected_store.company_name if selected_store else "あなた"
-                messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達しています。')
-                return redirect('seo_ranking:keyword_list')
+            # 再度チェック（並行アクセス対策）- 招待ユーザーは除外
+            if not target_user.is_invited_user:
+                current_count = Keyword.objects.filter(user=target_user).count()
+                if current_count >= 10:
+                    store_name = selected_store.company_name if selected_store else "あなた"
+                    messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達しています。')
+                    return redirect('seo_ranking:keyword_list')
             
             keyword = form.save(commit=False)
             keyword.user = target_user
@@ -174,12 +175,17 @@ def keyword_bulk_create(request):
             messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
             return redirect('seo_ranking:keyword_list')
     
-    # キーワード登録数チェック
-    current_count = Keyword.objects.filter(user=target_user).count()
-    if current_count >= 10:
-        store_name = selected_store.company_name if selected_store else "あなた"
-        messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
-        return redirect('seo_ranking:keyword_list')
+    # キーワード登録数チェック（招待ユーザー以外）
+    if not request.user.is_master and not request.user.is_invited_user:
+        current_count = Keyword.objects.filter(user=target_user).count()
+        if current_count >= 10:
+            messages.error(request, 'キーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
+            return redirect('seo_ranking:keyword_list')
+    elif request.user.is_master and selected_store and not selected_store.is_invited_user:
+        current_count = Keyword.objects.filter(user=selected_store).count()
+        if current_count >= 10:
+            messages.error(request, f'店舗「{selected_store.company_name}」のキーワード登録数の上限（10個）に達しています。')
+            return redirect('seo_ranking:keyword_list')
     
     if request.method == 'POST':
         form = BulkKeywordForm(request.POST, user=request.user, selected_store=selected_store)
@@ -216,8 +222,8 @@ def keyword_bulk_create(request):
                     skipped_count += 1
                     continue
                 
-                # 登録数制限チェック（各店舗10個まで）
-                if current_count >= 10:
+                # 登録数制限チェック（各店舗10個まで）- 招待ユーザー除く
+                if not target_user.is_invited_user and current_count >= 10:
                     store_name = selected_store.company_name if selected_store else "あなた"
                     messages.error(request, f'{store_name}のキーワード登録数の上限（10個）に達したため、"{keyword_text}" 以降の登録を中断しました。')
                     break

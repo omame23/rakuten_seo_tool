@@ -31,7 +31,11 @@
                         登録キーワード数: {{ total_keywords }}
                         {% if user.is_master %}
                             {% if target_user %}
-                                / 10（この店舗の上限）
+                                {% if target_user.is_invited_user %}
+                                    （無制限）
+                                {% else %}
+                                    / 10（この店舗の上限）
+                                {% endif %}
                             {% else %}
                                 （全店舗合計）
                             {% endif %}
@@ -40,7 +44,7 @@
                     {% endif %}
                 </div>
                 <div class="btn-group" role="group">
-                    {% if user.is_master or total_keywords < 10 %}
+                    {% if user.is_master or user.is_invited_user or total_keywords < 10 %}
                     <a href="{% url 'seo_ranking:keyword_create' %}" class="btn btn-outline-primary">
                         <i class="fas fa-plus"></i> 単体登録
                     </a>
