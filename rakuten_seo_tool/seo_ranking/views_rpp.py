@@ -772,10 +772,10 @@ def rpp_bulk_search(request):
             })
         
         # タイムアウト対策：多量のキーワードの場合は制限
-        if keywords.count() > 5:
+        if keywords.count() > 10:
             return JsonResponse({
                 'success': False,
-                'message': f'キーワード数が多いため（{keywords.count()}件）、タイムアウトを防ぐために5件以下に減らしてから実行してください。'
+                'message': f'キーワード数が多いため（{keywords.count()}件）、タイムアウトを防ぐために10件以下に減らしてから実行してください。'
             })
         
         # 実行ログを作成
