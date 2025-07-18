@@ -338,62 +338,72 @@ def rpp_keyword_search(request, keyword_id):
     try:
         start_time = time.time()
         
+        logger.info(f"RPP個別検索開始: keyword={keyword.keyword}, shop_id={keyword.rakuten_shop_id}")
+        
         # RPP広告順位を検索
         result = scrape_rpp_ranking(
             keyword=keyword.keyword,
             target_shop_id=keyword.rakuten_shop_id,
             target_product_url=keyword.target_product_url,
-            max_pages=5
+            max_pages=3  # ページ数を3に変更してパフォーマンス向上
         )
         
         execution_time = time.time() - start_time
+        logger.info(f"RPP個別検索完了: execution_time={execution_time:.2f}s, success={result.get('success')}, total_ads={result.get('total_ads')}, is_found={result.get('is_found')}, rank={result.get('rank')}")
         
         # 結果を保存
         rpp_result = RPPResult.objects.create(
             keyword=keyword,
             rank=result.get('rank'),
             total_ads=result.get('total_ads', 0),
-            pages_checked=5,
+            pages_checked=3,  # 実際の検索ページ数に合わせて修正
             is_found=result.get('is_found', False),
             error_message=result.get('error')
         )
         
         # 広告情報を保存
         ads = result.get('ads', [])
+        logger.info(f"RPP広告データ保存: {len(ads)}件")
         for i, ad in enumerate(ads[:20], 1):  # 上位20広告まで保存
-            # 自社商品かどうかを判定
-            is_own = False
-            if keyword.rakuten_shop_id.lower() in ad.get('shop_name', '').lower():
-                is_own = True
-            elif keyword.target_product_url and ad.get('product_url'):
-                if keyword.target_product_url in ad['product_url']:
+            try:
+                # 自社商品かどうかを判定
+                is_own = False
+                if keyword.rakuten_shop_id.lower() in ad.get('shop_name', '').lower():
                     is_own = True
-            
-            RPPAd.objects.create(
-                rpp_result=rpp_result,
-                rank=i,
-                product_name=ad.get('product_name', ''),
-                catchcopy=ad.get('catchcopy', ''),
-                product_url=ad.get('product_url', ''),
-                product_id=ad.get('product_id', ''),
-                shop_name=ad.get('shop_name', ''),
-                price=ad.get('price'),
-                image_url=ad.get('image_url', ''),
-                position_on_page=ad.get('position_on_page', 1),
-                page_number=ad.get('page_number', 1),
-                is_own_product=is_own
-            )
+                elif keyword.target_product_url and ad.get('product_url'):
+                    if keyword.target_product_url in ad['product_url']:
+                        is_own = True
+                
+                RPPAd.objects.create(
+                    result=rpp_result,  # field名をresultに修正
+                    position=ad.get('rank', i),
+                    product_name=ad.get('product_name', ''),
+                    catchcopy=ad.get('catchcopy', ''),
+                    product_url=ad.get('product_url', ''),
+                    product_id=ad.get('product_id', ''),
+                    shop_name=ad.get('shop_name', ''),
+                    price=ad.get('price'),
+                    image_url=ad.get('image_url', ''),
+                    position_on_page=ad.get('position_on_page', 1),
+                    page_number=ad.get('page_number', 1),
+                    is_own_product=is_own
+                )
+            except Exception as ad_error:
+                logger.error(f"広告データ保存エラー: {ad_error}, ad_data: {ad}")
         
         # 検索ログを保存
-        RPPSearchLog.objects.create(
-            user=request.user,
-            keyword=keyword.keyword,
-            execution_time=execution_time,
-            pages_checked=5,
-            ads_found=len(ads),
-            success=result.get('success', False),
-            error_details=result.get('error')
-        )
+        try:
+            RPPSearchLog.objects.create(
+                user=request.user,
+                keyword=keyword.keyword,
+                execution_time=execution_time,
+                pages_checked=3,  # 実際の検索ページ数に合わせる
+                ads_found=len(ads),
+                success=result.get('success', False),
+                error_details=result.get('error')
+            )
+        except Exception as log_error:
+            logger.error(f"検索ログ保存エラー: {log_error}")
         
         if result.get('success') and result.get('is_found'):
             try:
