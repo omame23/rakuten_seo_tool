@@ -725,6 +725,19 @@ def rpp_bulk_search(request):
     
     try:
         user = request.user
+        logger.info(f"RPP一括検索開始: user_id={user.id}, is_master={user.is_master}")
+        
+        # リクエストデータの確認
+        if request.content_type == 'application/json':
+            try:
+                request_data = json.loads(request.body)
+                logger.info(f"リクエストデータ: {request_data}")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSONパースエラー: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'message': 'リクエストデータの形式が正しくありません'
+                }, status=400)
         
         # マスターアカウントの場合は選択店舗のキーワードを取得
         target_user = user
@@ -876,8 +889,13 @@ def rpp_bulk_search(request):
         })
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         logger.error(f"RPP一括検索エラー: {e}")
+        logger.error(f"エラー詳細: {error_details}")
+        from django.conf import settings
         return JsonResponse({
             'success': False,
-            'message': f'一括検索でエラーが発生しました: {str(e)}'
+            'message': f'一括検索でエラーが発生しました: {str(e)}',
+            'error_details': error_details if settings.DEBUG else None
         }, status=500)
