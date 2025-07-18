@@ -34,6 +34,18 @@ This is a Django-based SaaS application for Rakuten marketplace SEO and advertis
 - **Redis**: ポート6380で動作中 (手動起動)
 - **Webサーバー**: Nginx + Django開発サーバー
 
+### サーバー常時稼働設定
+- **Django Application**: ポート8001で常時稼働中
+- **Redis**: ポート6380で常時稼働中
+- **システムサービス**: systemdで自動起動設定済み
+- **アクセス確認**: `http://162.43.53.160:8001` または `http://inspice.work:8001`
+
+### 本番環境での修正反映手順
+1. **コード修正後の反映**: 
+   - `git pull origin main`のみで反映完了
+   - **サーバー再起動は不要**（常時稼働設定済み）
+   - Django開発サーバーは自動でコード変更を検知
+
 ### 進行中のタスク
 - [ ] **DNS設定確認** - inspice.workドメインでのアクセス確認
 - [ ] **SSL証明書設定** - Let's Encrypt証明書の取得とHTTPS化
@@ -82,6 +94,53 @@ python manage.py test
 
 # Shell access
 python manage.py shell
+```
+
+## Production Deployment Commands
+
+**重要: 修正後は必ず本番環境に反映すること**
+
+### Server Access
+- **SSH接続**: `ssh root@162.43.53.160`
+- **パスワード**: `MaMe@1756WaRuo`
+
+### Deployment Steps
+```bash
+# 1. Commit and push changes to GitHub
+git add .
+git commit -m "修正内容の説明"
+git push origin main
+
+# 2. Deploy to production server (サーバー再起動不要)
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "cd /var/www/inspice/rakuten_seo_tool && git pull origin main"
+
+# 完了！Django開発サーバーが自動でコード変更を検知して反映されます
+```
+
+### 常時稼働サービス確認
+```bash
+# Django server status check
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "ps aux | grep 'python manage.py runserver' | grep -v grep"
+
+# Redis server status check
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "ps aux | grep redis | grep -v grep"
+```
+
+### Manual Server Commands (if needed)
+```bash
+# SSH into server
+ssh root@162.43.53.160
+
+# Navigate to project directory
+cd /var/www/inspice/rakuten_seo_tool
+
+# Pull latest changes
+git pull origin main
+
+# Restart Django server
+pkill -f "python manage.py runserver"
+source venv/bin/activate
+nohup python manage.py runserver 0.0.0.0:8001 > /dev/null 2>&1 &
 ```
 
 ## Technology Stack

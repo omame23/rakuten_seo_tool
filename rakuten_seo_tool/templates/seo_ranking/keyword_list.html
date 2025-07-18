@@ -303,6 +303,9 @@ document.getElementById('bulk-search-btn')?.addEventListener('click', function()
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中...';
     
+    // プログレス表示用のモーダルを作成
+    showBulkSearchProgress();
+    
     // CSRF トークンを取得
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
                      document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
@@ -318,6 +321,7 @@ document.getElementById('bulk-search-btn')?.addEventListener('click', function()
     })
     .then(response => response.json())
     .then(data => {
+        hideBulkSearchProgress();
         if (data.success) {
             // 成功メッセージを表示
             const alertDiv = document.createElement('div');
@@ -358,6 +362,7 @@ document.getElementById('bulk-search-btn')?.addEventListener('click', function()
         }
     })
     .catch(error => {
+        hideBulkSearchProgress();
         console.error('Error:', error);
         
         // エラーメッセージを表示
@@ -378,6 +383,28 @@ document.getElementById('bulk-search-btn')?.addEventListener('click', function()
         button.innerHTML = originalContent;
     });
 });
+
+// プログレス表示
+function showBulkSearchProgress() {
+    const progressHtml = `
+        <div id="bulkSearchProgress" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 300px;">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                <h5>SEO一括検索実行中</h5>
+                <p class="text-muted mb-0">処理が完了するまでお待ちください...</p>
+                <small class="text-warning">ページを閉じないでください</small>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', progressHtml);
+}
+
+function hideBulkSearchProgress() {
+    const progress = document.getElementById('bulkSearchProgress');
+    if (progress) {
+        progress.remove();
+    }
+}
 
 // 楽天市場検索を開く関数
 function openRakutenSearch(keyword) {
