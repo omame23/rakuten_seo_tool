@@ -265,7 +265,7 @@ function executeRPPSearch(keywordId, keywordName) {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中';
     
     // AJAX リクエスト
-    fetch(`/seo/rpp/search/${keywordId}/`, {
+    fetch(`{% url "seo_ranking:rpp_keyword_search" 0 %}`.replace('0', keywordId), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

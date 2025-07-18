@@ -24,17 +24,23 @@ def user_created(sender, instance, created, **kwargs):
 @receiver(user_logged_in)
 def user_logged_in_handler(sender, request, user, **kwargs):
     """ユーザーログイン時の処理"""
-    # サブスクリプション状態をチェック
-    if not user.has_active_subscription():
-        if user.subscription_status == 'trial':
-            messages.info(
-                request,
-                f'無料トライアル期間中です。{user.trial_end_date.strftime("%Y年%m月%d日")}まで全機能をご利用いただけます。'
-            )
+    try:
+        # サブスクリプション状態をチェック
+        if not user.has_active_subscription():
+            if user.subscription_status == 'trial':
+                messages.info(
+                    request,
+                    f'無料トライアル期間中です。{user.trial_end_date.strftime("%Y年%m月%d日")}まで全機能をご利用いただけます。'
+                )
+            else:
+                messages.warning(
+                    request,
+                    'サブスクリプションが無効です。全機能を利用するには有効なサブスクリプションが必要です。'
+                )
         else:
-            messages.warning(
-                request,
-                'サブスクリプションが無効です。全機能を利用するには有効なサブスクリプションが必要です。'
-            )
-    else:
-        messages.success(request, f'おかえりなさい、{user.contact_name}様！')
+            messages.success(request, f'おかえりなさい、{user.contact_name}様！')
+    except Exception as e:
+        # ログイン時のメッセージでエラーが発生した場合はログに記録するのみ
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f'ログイン時のメッセージ処理でエラーが発生: {e}')
