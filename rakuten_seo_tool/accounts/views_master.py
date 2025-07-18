@@ -296,8 +296,8 @@ def revenue_dashboard(request):
     # 先月の開始日
     last_month_start = (month_start - timedelta(days=1)).replace(day=1)
     
-    # 全ユーザー（マスター以外）
-    all_users = User.objects.filter(is_master=False)
+    # 全ユーザー（マスター以外、招待アカウント除く）
+    all_users = User.objects.filter(is_master=False, is_invited_user=False)
     
     # 無料体験中のユーザー数
     trial_users = all_users.filter(subscription_status='trial').count()
