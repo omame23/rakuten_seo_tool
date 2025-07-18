@@ -6,6 +6,8 @@ from django.urls import reverse_lazy
 from django.db.models import Q, Count
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import datetime, timedelta
 import csv
 from .models import User
 from .decorators import master_account_required
@@ -280,3 +282,96 @@ def view_store_dashboard(request, pk):
     except User.DoesNotExist:
         messages.error(request, '指定された店舗が見つかりません。')
         return redirect('accounts:master_store_list')
+
+
+@master_account_required
+def revenue_dashboard(request):
+    """売上管理ダッシュボード"""
+    # 現在の日付
+    today = timezone.now().date()
+    
+    # 今月の開始日
+    month_start = today.replace(day=1)
+    
+    # 先月の開始日
+    last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    
+    # 全ユーザー（マスター以外）
+    all_users = User.objects.filter(is_master=False)
+    
+    # 無料体験中のユーザー数
+    trial_users = all_users.filter(subscription_status='trial').count()
+    
+    # 課金中のユーザー数
+    active_users = all_users.filter(subscription_status='active').count()
+    
+    # 今月新規登録ユーザー数
+    new_users_this_month = all_users.filter(
+        date_joined__gte=month_start
+    ).count()
+    
+    # 先月新規登録ユーザー数
+    new_users_last_month = all_users.filter(
+        date_joined__gte=last_month_start,
+        date_joined__lt=month_start
+    ).count()
+    
+    # 月額料金（¥3,980）
+    monthly_fee = 3980
+    
+    # 今月の推定売上（課金ユーザー数 × 月額料金）
+    estimated_revenue = active_users * monthly_fee
+    
+    # 先月の課金ユーザー数（概算）
+    # 実際のデータがない場合は現在の数値を使用
+    last_month_active_users = active_users  # 実際には履歴データが必要
+    last_month_revenue = last_month_active_users * monthly_fee
+    
+    # ユーザー状況の詳細
+    user_stats = {
+        'total_users': all_users.count(),
+        'trial_users': trial_users,
+        'active_users': active_users,
+        'inactive_users': all_users.filter(subscription_status='inactive').count(),
+        'new_users_this_month': new_users_this_month,
+        'new_users_last_month': new_users_last_month,
+    }
+    
+    # 売上情報
+    revenue_stats = {
+        'estimated_monthly_revenue': estimated_revenue,
+        'last_month_revenue': last_month_revenue,
+        'monthly_fee': monthly_fee,
+        'revenue_growth': estimated_revenue - last_month_revenue,
+    }
+    
+    # 最近の新規登録ユーザー（直近10件）
+    recent_users = all_users.order_by('-date_joined')[:10]
+    
+    # 月別の登録ユーザー数推移（直近12ヶ月）
+    monthly_registrations = []
+    for i in range(12):
+        month_date = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+        next_month = (month_date + timedelta(days=32)).replace(day=1)
+        
+        count = all_users.filter(
+            date_joined__gte=month_date,
+            date_joined__lt=next_month
+        ).count()
+        
+        monthly_registrations.append({
+            'month': month_date.strftime('%Y-%m'),
+            'count': count
+        })
+    
+    monthly_registrations.reverse()
+    
+    context = {
+        'user_stats': user_stats,
+        'revenue_stats': revenue_stats,
+        'recent_users': recent_users,
+        'monthly_registrations': monthly_registrations,
+        'today': today,
+    }
+    
+    return render(request, 'accounts/master/revenue_dashboard.html', context)

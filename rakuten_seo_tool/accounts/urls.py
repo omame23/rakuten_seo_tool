@@ -3,7 +3,8 @@ from .views import DashboardView, account_settings, billing_info
 from .views_master import (
     StoreListView, StoreDetailView, StoreCreateView, 
     StoreUpdateView, StoreDeleteView, store_export_csv,
-    store_bulk_action, set_selected_store, view_store_dashboard
+    store_bulk_action, set_selected_store, view_store_dashboard,
+    revenue_dashboard
 )
 
 app_name = 'accounts'
@@ -23,6 +24,9 @@ urlpatterns = [
     path('master/stores/export/', store_export_csv, name='master_store_export'),
     path('master/stores/bulk-action/', store_bulk_action, name='master_store_bulk_action'),
     path('master/set-selected-store/', set_selected_store, name='master_set_selected_store'),
+    
+    # マスターアカウント専用 - 売上管理
+    path('master/revenue/', revenue_dashboard, name='master_revenue_dashboard'),
     
     # confirm_email はallauthのデフォルト処理に任せる
 ]

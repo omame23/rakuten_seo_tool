@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}売上管理 - 楽天SEO対策ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
+                    <i class="fas fa-chart-line"></i> 売上管理
+                    <span class="badge bg-danger ms-2">
+                        <i class="fas fa-crown"></i> マスター
+                    </span>
+                </h1>
+                <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> ダッシュボードに戻る
+                </a>
+            </div>
+            
+            <!-- 売上概要 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">今月の推定売上</h6>
+                            <h3 class="mb-0">¥{{ revenue_stats.estimated_monthly_revenue|floatformat:0 }}</h3>
+                            <small>{{ user_stats.active_users }}名 × ¥{{ revenue_stats.monthly_fee|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">課金ユーザー数</h6>
+                            <h3 class="mb-0">{{ user_stats.active_users }}名</h3>
+                            <small>月額 ¥{{ revenue_stats.monthly_fee|floatformat:0 }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">無料体験中</h6>
+                            <h3 class="mb-0">{{ user_stats.trial_users }}名</h3>
+                            <small>課金前ユーザー</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">今月新規登録</h6>
+                            <h3 class="mb-0">{{ user_stats.new_users_this_month }}名</h3>
+                            <small>先月: {{ user_stats.new_users_last_month }}名</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 詳細統計 -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> 月別登録ユーザー数推移</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="registrationChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-users"></i> ユーザー状況</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span>総ユーザー数</span>
+                                    <strong>{{ user_stats.total_users }}名</strong>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-success">課金中</span>
+                                    <strong>{{ user_stats.active_users }}名</strong>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" style="width: {{ user_stats.active_users|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-warning">無料体験中</span>
+                                    <strong>{{ user_stats.trial_users }}名</strong>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-warning" style="width: {{ user_stats.trial_users|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-secondary">無効</span>
+                                    <strong>{{ user_stats.inactive_users }}名</strong>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-secondary" style="width: {{ user_stats.inactive_users|floatformat:0 }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 最近の新規登録ユーザー -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user-plus"></i> 最近の新規登録ユーザー</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>登録日</th>
+                                    <th>会社名</th>
+                                    <th>楽天店舗ID</th>
+                                    <th>メールアドレス</th>
+                                    <th>状態</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>{{ user.date_joined|date:"Y-m-d" }}</td>
+                                    <td>{{ user.company_name }}</td>
+                                    <td>{{ user.rakuten_shop_id|default:"-" }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.subscription_status == 'active' %}
+                                            <span class="badge bg-success">課金中</span>
+                                        {% elif user.subscription_status == 'trial' %}
+                                            <span class="badge bg-warning">無料体験</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">無効</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'accounts:master_store_detail' user.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> 詳細
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">
+                                        新規登録ユーザーがありません
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        transition: transform 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .progress {
+        height: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 月別登録ユーザー数のグラフ
+const ctx = document.getElementById('registrationChart').getContext('2d');
+const registrationChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [
+            {% for item in monthly_registrations %}
+            '{{ item.month }}'{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: '新規登録ユーザー数',
+            data: [
+                {% for item in monthly_registrations %}
+                {{ item.count }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
