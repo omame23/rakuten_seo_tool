@@ -265,7 +265,7 @@ function executeRPPSearch(keywordId, keywordName) {
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 実行中';
     
     // AJAX リクエスト
-    fetch(`{% url "seo_ranking:rpp_keyword_search" 0 %}`.replace('0', keywordId), {
+    fetch(`/seo/rpp/search/${keywordId}/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -308,7 +308,7 @@ function executeBulkRPPSearch() {
     showBulkSearchProgress();
     
     // AJAX リクエスト
-    fetch('{% url "seo_ranking:rpp_bulk_search" %}', {
+    fetch('/seo/rpp/bulk-search/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
