@@ -308,7 +308,7 @@ function executeBulkRPPSearch() {
     showBulkSearchProgress();
     
     // AJAX リクエスト
-    fetch('/seo/rpp/bulk-search/', {
+    fetch('{% url "seo_ranking:rpp_bulk_search" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
