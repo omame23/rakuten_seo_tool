@@ -771,6 +771,13 @@ def rpp_bulk_search(request):
                 'message': '実行対象のアクティブなキーワードがありません'
             })
         
+        # タイムアウト対策：多量のキーワードの場合は制限
+        if keywords.count() > 5:
+            return JsonResponse({
+                'success': False,
+                'message': f'キーワード数が多いため（{keywords.count()}件）、タイムアウトを防ぐために5件以下に減らしてから実行してください。'
+            })
+        
         # 実行ログを作成
         bulk_log = RPPBulkSearchLog.objects.create(
             user=target_user,
