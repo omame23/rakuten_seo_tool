@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+やり取りは全て日本語で質問も回答もしてください。
 
 ## Project Overview
 
@@ -22,6 +23,34 @@ This is a Django-based SaaS application for Rakuten marketplace SEO and advertis
 - **Storage**: NVMe SSD 400GB
 - **IP Address**: 162.43.53.160
 - **Domain**: inspice.work (ネームサーバー設定済み)
+
+## Current Status (本番環境)
+
+### 本番環境状況
+- **サーバー**: 稼働中 (X VPS - 162.43.53.160)
+- **アクセス**: http://162.43.53.160:8001 ✅ (動作確認済み)
+- **ドメイン**: inspice.work (DNS反映待ち中)
+- **データベース**: PostgreSQL (inspice_seo_tool)
+- **Redis**: ポート6380で動作中 (手動起動)
+- **Webサーバー**: Nginx + Django開発サーバー
+
+### 進行中のタスク
+- [ ] **DNS設定確認** - inspice.workドメインでのアクセス確認
+- [ ] **SSL証明書設定** - Let's Encrypt証明書の取得とHTTPS化
+- [ ] **メール設定** - info@inspice.workメールアドレス作成と認証メール機能
+- [ ] **Celeryサービス設定** - systemdサービス化とバックグラウンドタスク設定
+
+### 直近の課題
+- Redis systemd設定未完了 (現在手動起動中)
+- Django開発サーバーでの運用 (本番環境ではGunicorn推奨)
+- メール転送設定未完了 (segi@inspice.net)
+
+### 再開時の手順
+1. Current Statusを確認
+2. サーバー状態をチェック (`ssh root@162.43.53.160`)
+3. DNS設定反映確認 (`nslookup inspice.work`)
+4. Djangoアプリケーション起動確認 (`http://162.43.53.160:8001`)
+5. 次のタスクをTodoWriteツールで整理
 
 ## Development Commands
 
@@ -181,9 +210,196 @@ Required in .env file:
 - Proper user data management
 - Payment data security
 
-## Recent Work History (2025年7月12日)
+## Recent Work History
 
-### Fixed Issues
+### 2025年7月17日: VPSサーバーセットアップ完了
+
+#### 実装内容
+1. ✅ **VPSサーバー基本設定**
+   - Ubuntu 25.04のセットアップ
+   - 必要ソフトウェアのインストール (Python 3.13.3, PostgreSQL 17.5, Redis 7.0.15, Nginx 1.26.3)
+   - セキュリティ設定とファイアウォール設定
+
+2. ✅ **Djangoアプリケーションデプロイ**
+   - GitHubからのコードクローン (https://github.com/omame23/rakuten_seo_tool.git)
+   - 仮想環境作成とパッケージインストール
+   - データベース設定とマイグレーション
+   - マスターアカウント作成 (segishogo@gmail.com / admin123)
+
+3. ✅ **ドメイン設定**
+   - inspice.workドメインの設定
+   - Nginx設定とリバースプロキシ
+   - DNS設定 (お名前.comネームサーバー使用)
+
+#### 技術的詳細
+- **プロジェクト場所**: `/var/www/inspice/rakuten_seo_tool`
+- **仮想環境**: `/var/www/inspice/rakuten_seo_tool/venv`
+- **環境変数**: `.env`ファイル (ALLOWED_HOSTS=localhost,127.0.0.1,162.43.53.160,inspice.work,www.inspice.work)
+- **Nginx設定**: `/etc/nginx/sites-available/inspice.work`
+- **ファイアウォール**: UFW + X VPS管理画面でポート8001開放
+- **Redis**: 手動起動 (redis-server --port 6380 --bind 127.0.0.1 --protected-mode no --daemonize yes)
+
+#### 開発サーバー起動コマンド
+```bash
+cd /var/www/inspice/rakuten_seo_tool
+source venv/bin/activate
+python manage.py runserver 0.0.0.0:8001
+```
+
+### 2025年7月16日: マスターアカウント店舗管理機能の実装
+
+#### 実装内容
+1. ✅ **マスターアカウント専用店舗管理機能**
+   - 「ユーザー管理」から「店舗管理」への表記変更
+   - 店舗の閲覧、編集、削除機能
+   - 新規店舗追加機能（楽天店舗IDのみで登録可能）
+   - ダッシュボードでの店舗切り替えプルダウン機能
+
+2. ✅ **店舗別SEO・RPP管理機能**
+   - 選択店舗のキーワード一覧表示
+   - キーワード登録時の店舗ID自動設定
+   - 店舗別一括検索機能
+   - 店舗別履歴・詳細閲覧機能
+
+3. ✅ **マスターアカウント向けアクセス制御**
+   - 全店舗データへのアクセス権限
+   - 店舗IDクリックでダッシュボード移動
+   - 各機能での店舗選択対応
+
+#### 修正したファイル
+- `/accounts/decorators.py` - マスターアカウント専用デコレーター
+- `/accounts/views_master.py` - 店舗管理ビュー
+- `/accounts/forms_master.py` - 店舗管理フォーム
+- `/templates/accounts/master/` - 店舗管理テンプレート一式
+- `/accounts/views.py` - ダッシュボード修正
+- `/seo_ranking/views.py` - SEO機能の店舗対応
+- `/seo_ranking/views_rpp.py` - RPP機能の店舗対応
+- `/seo_ranking/forms.py` - SEOフォームの店舗対応
+- `/seo_ranking/forms_rpp.py` - RPPフォームの店舗対応
+- `/templates/accounts/dashboard.html` - ダッシュボード修正
+- `/templates/seo_ranking/rpp_keyword_list.html` - RPP一覧表示改善
+
+#### 技術的な解決事項
+1. **404エラーの修正**: マスターアカウントが他店舗データにアクセスできない問題を解決
+2. **キーワード登録問題の修正**: フォームバリデーションでの対象ユーザー混同を解決
+3. **データ表示問題の修正**: マスターアカウントの既存キーワードが表示されない問題を解決
+
+#### 実装の詳細
+
+**1. マスターアカウント専用デコレーター**
+```python
+# accounts/decorators.py
+def master_account_required(view_func):
+    @wraps(view_func)
+    @login_required
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_master:
+            messages.error(request, 'この機能はマスターアカウントのみ利用可能です。')
+            return redirect('accounts:dashboard')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+```
+
+**2. 店舗管理ビュー**
+```python
+# accounts/views_master.py
+class StoreListView(ListView):
+    model = User
+    template_name = 'accounts/master/store_list.html'
+    context_object_name = 'stores'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = User.objects.filter(is_master=False).order_by('company_name')
+        search_query = self.request.GET.get('search')
+        if search_query:
+            queryset = queryset.filter(
+                Q(company_name__icontains=search_query) |
+                Q(rakuten_shop_id__icontains=search_query)
+            )
+        return queryset
+```
+
+**3. 店舗切り替え機能**
+```python
+# accounts/views.py (DashboardView)
+if user.is_master:
+    all_stores = User.objects.filter(is_master=False).order_by('company_name')
+    context['all_stores'] = all_stores
+    selected_store_id = self.request.session.get('selected_store_id')
+    if selected_store_id:
+        try:
+            selected_user = User.objects.get(id=selected_store_id, is_master=False)
+            context['selected_store'] = selected_user
+            keyword_count = Keyword.objects.filter(user=selected_user).count()
+        except User.DoesNotExist:
+            del self.request.session['selected_store_id']
+            del self.request.session['selected_store_name']
+```
+
+**4. SEO機能の店舗対応**
+```python
+# seo_ranking/views.py
+def get_queryset(self):
+    if self.request.user.is_master:
+        selected_store_id = self.request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                return Keyword.objects.filter(user=selected_user).order_by('-created_at')
+            except User.DoesNotExist:
+                return Keyword.objects.none()
+    return Keyword.objects.filter(user=self.request.user).order_by('-created_at')
+```
+
+**5. RPP機能の店舗対応**
+```python
+# seo_ranking/views_rpp.py
+def get_queryset(self):
+    if self.request.user.is_master:
+        selected_store_id = self.request.session.get('selected_store_id')
+        if selected_store_id:
+            try:
+                selected_user = User.objects.get(id=selected_store_id, is_master=False)
+                return RPPKeyword.objects.filter(user=selected_user).order_by('-created_at')
+            except User.DoesNotExist:
+                return RPPKeyword.objects.none()
+    return RPPKeyword.objects.filter(user=self.request.user).order_by('-created_at')
+```
+
+**6. フォームの店舗対応**
+```python
+# seo_ranking/forms.py & forms_rpp.py
+def __init__(self, *args, user=None, selected_store=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.user = user
+    self.selected_store = selected_store
+    self.target_user = selected_store if (user and user.is_master and selected_store) else user
+    
+    if user and user.is_master and selected_store:
+        self.fields['rakuten_shop_id'].initial = selected_store.rakuten_shop_id
+        self.fields['rakuten_shop_id'].widget.attrs.update({
+            'readonly': True,
+            'class': 'form-control bg-light',
+            'title': f'選択店舗: {selected_store.company_name}'
+        })
+```
+
+#### 現在の機能状況
+- **SEO機能**: 完全に店舗別対応済み
+- **RPP機能**: 完全に店舗別対応済み  
+- **ダッシュボード**: 店舗切り替え機能完備
+- **マスター管理**: 全店舗の統合管理可能
+
+#### 今後の課題
+1. **UI/UX改善**: 店舗切り替えUIの視認性向上
+2. **パフォーマンス最適化**: 大量店舗データの効率的な処理
+3. **統計・分析機能**: 全店舗横断でのデータ分析機能
+4. **権限管理**: より細かな権限設定機能
+
+### 2025年7月12日: UI/UX改善
+
+#### Fixed Issues
 1. ✅ **Thumbnail Display Text Visibility**: Fixed flexbox layout issues in SEO ranking detail page
    - Adjusted heights: Image 200px, Text 80px (total 280px)
    - Removed padding and borders for better space utilization
@@ -204,13 +420,7 @@ Required in .env file:
    - Unified with SEO ranking memo functionality
    - Changed from JSON-based to form-based approach
 
-### Modified Files
-- `/templates/seo_ranking/ranking_detail.html`
-- `/seo_ranking/views.py`
-- `/templates/seo_ranking/rpp_detail.html`
-- `/seo_ranking/views_rpp.py`
-
-### Technical Notes
+#### Technical Notes
 - Use `object-fit: contain` for images to prevent cropping
 - `aspect-ratio: 1/1` enforces square display
 - Form-based approach preferred over JSON for consistency

@@ -1,0 +1,20 @@
+[Unit]
+Description=Inspice SEO Tool Celery Worker
+After=network.target redis.service
+Requires=redis.service
+
+[Service]
+Type=forking
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/inspice/rakuten_seo_tool
+Environment=PATH=/var/www/inspice/rakuten_seo_tool/venv/bin
+ExecStart=/var/www/inspice/rakuten_seo_tool/venv/bin/celery -A inspice_seo_tool worker --loglevel=info --pidfile=/var/run/celery/celery.pid --logfile=/var/log/inspice/celery.log --detach
+ExecStop=/bin/kill -s TERM $MAINPID
+ExecReload=/bin/kill -s HUP $MAINPID
+PIDFile=/var/run/celery/celery.pid
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

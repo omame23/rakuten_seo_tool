@@ -249,7 +249,7 @@ def set_selected_store(request):
                 request.session['selected_store_name'] = '全店舗'
             else:
                 try:
-                    store = User.objects.get(id=store_id, is_master=False)
+                    store = User.objects.get(id=store_id, is_invited_user=True)
                     request.session['selected_store_id'] = store_id
                     request.session['selected_store_name'] = store.company_name
                 except User.DoesNotExist:

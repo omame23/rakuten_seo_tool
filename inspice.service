@@ -1,0 +1,21 @@
+[Unit]
+Description=Inspice SEO Tool Django Application
+After=network.target postgresql.service redis.service
+Requires=postgresql.service redis.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/inspice/rakuten_seo_tool
+Environment=PATH=/var/www/inspice/rakuten_seo_tool/venv/bin
+ExecStart=/var/www/inspice/rakuten_seo_tool/venv/bin/gunicorn --config gunicorn.conf.py inspice_seo_tool.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

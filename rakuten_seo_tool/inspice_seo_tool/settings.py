@@ -209,8 +209,17 @@ RAKUTEN_APPLICATION_ID = os.environ.get('RAKUTEN_APP_ID')  # 楽天ランキン�
 RAKUTEN_APP_SECRET = os.environ.get('RAKUTEN_APP_SECRET')
 CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
 
-# CSRF settings for development
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+# CSRF settings for development and production
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000', 
+    'http://127.0.0.1:8000',
+    'https://inspice.work',
+    'https://www.inspice.work',
+    'http://inspice.work',
+    'http://www.inspice.work',
+    'http://162.43.53.160:8001',
+    'https://162.43.53.160:8001'
+]
 CSRF_COOKIE_SECURE = False  # 開発環境ではFalse、本番環境ではTrue
 CSRF_COOKIE_HTTPONLY = False
 

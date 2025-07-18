@@ -9,6 +9,28 @@ User = get_user_model()
 
 class CustomAccountAdapter(DefaultAccountAdapter):
     
+    def is_email_verification_mandatory(self, request):
+        """
+        メール認証が必須かどうかを判定
+        マスターアカウントの場合は認証をスキップ
+        """
+        # ログインしようとしているユーザーがマスターアカウントの場合、認証をスキップ
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            if hasattr(request.user, 'is_master') and request.user.is_master:
+                return False
+        
+        # ログイン時にメールアドレスからマスターアカウントかどうかを判定
+        email = request.POST.get('login', None)
+        if email:
+            try:
+                user = User.objects.get(email=email)
+                if hasattr(user, 'is_master') and user.is_master:
+                    return False
+            except User.DoesNotExist:
+                pass
+        
+        return super().is_email_verification_mandatory(request)
+    
     def save_user(self, request, user, form, commit=True):
         """
         カスタムユーザーモデル用のユーザー保存処理

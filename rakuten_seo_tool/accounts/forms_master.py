@@ -63,8 +63,9 @@ class StoreCreateForm(forms.ModelForm):
         if not user.phone_number:
             user.phone_number = "000-0000-0000"
         
-        # マスターアカウントではない
+        # マスターアカウントではない、招待ユーザーとして設定
         user.is_master = False
+        user.is_invited_user = True  # 招待ユーザーとしてマーク
         user.is_active = True
         user.subscription_status = 'trial'  # デフォルトでトライアル
         

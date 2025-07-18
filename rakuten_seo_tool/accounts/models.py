@@ -102,6 +102,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text='全機能・全店舗データにアクセス可能'
     )
     
+    # 招待ユーザー設定
+    is_invited_user = models.BooleanField(
+        verbose_name='招待ユーザー',
+        default=False,
+        help_text='マスターアカウントから招待されたユーザー（ダッシュボードに表示）'
+    )
+    
     # 自動検索設定
     auto_search_enabled = models.BooleanField(
         verbose_name='自動検索有効',
