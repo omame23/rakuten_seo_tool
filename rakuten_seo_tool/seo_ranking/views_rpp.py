@@ -321,9 +321,6 @@ def rpp_keyword_delete(request, keyword_id):
 @require_http_methods(["POST"])
 def rpp_keyword_search(request, keyword_id):
     """RPPキーワード検索実行"""
-    # デバッグログ追加
-    logger.error(f"DEBUG: rpp_keyword_search called - keyword_id={keyword_id}, user={request.user}, method={request.method}")
-    
     # マスターアカウントの場合は全店舗のキーワードにアクセス可能
     if request.user.is_master:
         keyword = get_object_or_404(RPPKeyword, id=keyword_id)
@@ -436,10 +433,7 @@ def rpp_keyword_search(request, keyword_id):
             return JsonResponse({'success': False, 'message': result.get('error', '検索に失敗しました')})
     
     except Exception as e:
-        import traceback
-        error_traceback = traceback.format_exc()
         logger.error(f'RPP search error for keyword {keyword_id}: {e}')
-        logger.error(f'Full traceback: {error_traceback}')
         try:
             messages.error(request, 'RPP検索中にエラーが発生しました。しばらくしてから再度お試しください。')
         except Exception as msg_error:
