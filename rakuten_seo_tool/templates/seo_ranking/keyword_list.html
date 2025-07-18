@@ -160,10 +160,10 @@
                                     <td>{{ keyword.created_at|date:"Y/m/d" }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-success" 
+                                            <button type="button" class="btn btn-sm btn-primary" 
                                                     onclick="searchKeyword({{ keyword.id }})"
                                                     title="検索実行">
-                                                <i class="fas fa-search"></i>
+                                                <i class="fas fa-search"></i> 検索
                                             </button>
                                             <a href="{% url 'seo_ranking:ranking_results' keyword.id %}" 
                                                class="btn btn-sm btn-info" title="履歴">
