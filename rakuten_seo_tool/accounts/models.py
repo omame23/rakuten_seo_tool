@@ -147,7 +147,12 @@ class User(AbstractBaseUser, PermissionsMixin):
             return True
         
         if self.subscription_status == 'trial':
-            return self.trial_end_date and self.trial_end_date > timezone.now()
+            # trial_end_dateが設定されている場合はそれを基準に判定
+            if self.trial_end_date:
+                return self.trial_end_date > timezone.now()
+            # trial_end_dateが設定されていない場合は30日間の無料期間を使用
+            else:
+                return self.is_within_trial_period()
         return self.subscription_status == 'active'
     
     def can_access_all_stores(self):

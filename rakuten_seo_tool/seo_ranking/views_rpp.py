@@ -320,7 +320,10 @@ def rpp_keyword_search(request, keyword_id):
     
     # サブスクリプションチェック
     if not request.user.has_active_subscription():
-        messages.error(request, '有効なサブスクリプションが必要です。')
+        try:
+            messages.error(request, '有効なサブスクリプションが必要です。')
+        except Exception as msg_error:
+            logger.error(f'Messages framework error: {msg_error}')
         return JsonResponse({'success': False, 'message': '有効なサブスクリプションが必要です。'})
     
     try:
@@ -384,26 +387,38 @@ def rpp_keyword_search(request, keyword_id):
         )
         
         if result.get('success') and result.get('is_found'):
-            messages.success(request, f'RPPキーワード "{keyword.keyword}" の検索が完了しました。順位: {result["rank"]}位')
+            try:
+                messages.success(request, f'RPPキーワード "{keyword.keyword}" の検索が完了しました。順位: {result["rank"]}位')
+            except Exception as msg_error:
+                logger.error(f'Messages framework error: {msg_error}')
             return JsonResponse({
                 'success': True,
                 'rank': result['rank'],
                 'message': f'順位: {result["rank"]}位'
             })
         elif result.get('success'):
-            messages.info(request, f'RPPキーワード "{keyword.keyword}" で広告が見つかりませんでした（圏外）。')
+            try:
+                messages.info(request, f'RPPキーワード "{keyword.keyword}" で広告が見つかりませんでした（圏外）。')
+            except Exception as msg_error:
+                logger.error(f'Messages framework error: {msg_error}')
             return JsonResponse({
                 'success': True,
                 'rank': None,
                 'message': '圏外'
             })
         else:
-            messages.error(request, f'RPP検索中にエラーが発生しました: {result.get("error", "不明なエラー")}')
+            try:
+                messages.error(request, f'RPP検索中にエラーが発生しました: {result.get("error", "不明なエラー")}')
+            except Exception as msg_error:
+                logger.error(f'Messages framework error: {msg_error}')
             return JsonResponse({'success': False, 'message': result.get('error', '検索に失敗しました')})
     
     except Exception as e:
         logger.error(f'RPP search error for keyword {keyword_id}: {e}')
-        messages.error(request, 'RPP検索中にエラーが発生しました。しばらくしてから再度お試しください。')
+        try:
+            messages.error(request, 'RPP検索中にエラーが発生しました。しばらくしてから再度お試しください。')
+        except Exception as msg_error:
+            logger.error(f'Messages framework error: {msg_error}')
         return JsonResponse({'success': False, 'message': '検索処理でエラーが発生しました'})
 
 
