@@ -772,10 +772,10 @@ def rpp_bulk_search(request):
             })
         
         # タイムアウト対策：多量のキーワードの場合は制限
-        if keywords.count() > 10:
+        if keywords.count() > 50:
             return JsonResponse({
                 'success': False,
-                'message': f'キーワード数が多いため（{keywords.count()}件）、タイムアウトを防ぐために10件以下に減らしてから実行してください。'
+                'message': f'キーワード数が多いため（{keywords.count()}件）、タイムアウトを防ぐために50件以下に減らしてから実行してください。'
             })
         
         # 実行ログを作成
@@ -791,10 +791,19 @@ def rpp_bulk_search(request):
         success_count = 0
         error_count = 0
         
-        # 各キーワードを順次実行
-        for keyword in keywords:
+        # 各キーワードを順次実行（プログレス表示対応）
+        total_keywords = keywords.count()
+        for i, keyword in enumerate(keywords, 1):
             try:
-                logger.info(f"RPP検索実行中: {keyword.keyword} ({keyword.rakuten_shop_id})")
+                logger.info(f"RPP検索実行中: {keyword.keyword} ({keyword.rakuten_shop_id}) - {i}/{total_keywords}")
+                
+                # 長時間実行の場合は間隔を空ける
+                if i > 1 and total_keywords > 20:
+                    time.sleep(3)  # 3秒間隔
+                elif i > 1 and total_keywords > 10:
+                    time.sleep(2)  # 2秒間隔
+                elif i > 1:
+                    time.sleep(1)  # 1秒間隔
                 
                 # RPP順位検索を実行
                 result = scrape_rpp_ranking(
