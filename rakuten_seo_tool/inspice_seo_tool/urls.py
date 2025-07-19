@@ -26,6 +26,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('accounts/', include('allauth.urls')),
     path('seo/', include('seo_ranking.urls')),
+    path('webhooks/', include('accounts.webhook_urls')),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('', TemplateView.as_view(template_name='home.html'), name='home'),
 ]

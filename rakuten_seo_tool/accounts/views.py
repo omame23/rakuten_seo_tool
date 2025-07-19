@@ -6,6 +6,10 @@ from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.hashers import check_password
+from django.http import JsonResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -191,6 +195,166 @@ def billing_info(request):
     return render(request, 'accounts/billing.html', {
         'stripe_public_key': settings.STRIPE_PUBLIC_KEY,
     })
+
+
+@login_required
+def create_subscription(request):
+    """サブスクリプション作成"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
+    
+    try:
+        import stripe
+        import json
+        
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        data = json.loads(request.body)
+        plan = data.get('plan', request.user.subscription_plan)
+        
+        # Price IDを決定
+        if plan == 'standard':
+            price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+        elif plan == 'master':
+            price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+        else:
+            return JsonResponse({'success': False, 'error': '無効なプランです'})
+        
+        # Stripeカスタマーを作成または取得
+        if request.user.stripe_customer_id:
+            customer = stripe.Customer.retrieve(request.user.stripe_customer_id)
+        else:
+            customer = stripe.Customer.create(
+                email=request.user.email,
+                name=request.user.contact_name,
+                metadata={
+                    'user_id': request.user.id,
+                    'company_name': request.user.company_name,
+                }
+            )
+            request.user.stripe_customer_id = customer.id
+            request.user.save()
+        
+        # サブスクリプションを作成
+        subscription = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{
+                'price': price_id,
+            }],
+            payment_behavior='default_incomplete',
+            payment_settings={'save_default_payment_method': 'on_subscription'},
+            expand=['latest_invoice.payment_intent'],
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'client_secret': subscription.latest_invoice.payment_intent.client_secret,
+            'subscription_id': subscription.id,
+        })
+        
+    except Exception as e:
+        logger.error(f'Subscription creation error: {e}')
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required  
+def change_plan(request):
+    """プラン変更"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
+    
+    try:
+        import stripe
+        import json
+        
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        data = json.loads(request.body)
+        new_plan = data.get('plan')
+        
+        if new_plan not in ['standard', 'master']:
+            return JsonResponse({'success': False, 'error': '無効なプランです'})
+        
+        # Price IDを決定
+        if new_plan == 'standard':
+            new_price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+        else:  # master
+            new_price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+        
+        # 現在のサブスクリプションを取得
+        if not request.user.stripe_customer_id:
+            return JsonResponse({'success': False, 'error': 'カスタマーIDが見つかりません'})
+        
+        # サブスクリプション一覧を取得
+        subscriptions = stripe.Subscription.list(
+            customer=request.user.stripe_customer_id,
+            status='active',
+            limit=1
+        )
+        
+        if not subscriptions.data:
+            return JsonResponse({'success': False, 'error': 'アクティブなサブスクリプションが見つかりません'})
+        
+        subscription = subscriptions.data[0]
+        
+        # サブスクリプションアイテムを更新
+        stripe.Subscription.modify(
+            subscription.id,
+            items=[{
+                'id': subscription['items']['data'][0].id,
+                'price': new_price_id,
+            }],
+            proration_behavior='always_invoice',
+        )
+        
+        # ユーザーのプラン情報を更新
+        request.user.subscription_plan = new_plan
+        request.user.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f'Plan change error: {e}')
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def cancel_subscription(request):
+    """サブスクリプションキャンセル"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
+    
+    try:
+        import stripe
+        
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        if not request.user.stripe_customer_id:
+            return JsonResponse({'success': False, 'error': 'カスタマーIDが見つかりません'})
+        
+        # サブスクリプション一覧を取得
+        subscriptions = stripe.Subscription.list(
+            customer=request.user.stripe_customer_id,
+            status='active',
+            limit=1
+        )
+        
+        if not subscriptions.data:
+            return JsonResponse({'success': False, 'error': 'アクティブなサブスクリプションが見つかりません'})
+        
+        subscription = subscriptions.data[0]
+        
+        # サブスクリプションをキャンセル（期間末まで有効）
+        stripe.Subscription.modify(
+            subscription.id,
+            cancel_at_period_end=True
+        )
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f'Subscription cancel error: {e}')
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 # confirm_email ビューは削除（allauthのデフォルト処理を使用）

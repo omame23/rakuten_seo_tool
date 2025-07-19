@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import DashboardView, account_settings, billing_info
+from .views import (
+    DashboardView, account_settings, billing_info,
+    create_subscription, change_plan, cancel_subscription
+)
 from .views_master import (
     StoreListView, StoreDetailView, StoreCreateView, 
     StoreUpdateView, StoreDeleteView, store_export_csv,
@@ -13,6 +16,9 @@ urlpatterns = [
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('settings/', account_settings, name='settings'),
     path('billing/', billing_info, name='billing'),
+    path('billing/subscribe/', create_subscription, name='create_subscription'),
+    path('billing/change-plan/', change_plan, name='change_plan'),
+    path('billing/cancel/', cancel_subscription, name='cancel_subscription'),
     
     # マスターアカウント専用 - 店舗管理
     path('master/stores/', StoreListView.as_view(), name='master_store_list'),

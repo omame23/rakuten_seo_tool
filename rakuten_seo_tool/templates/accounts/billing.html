@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}請求情報 - 楽天検索順位確認ツール{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-credit-card"></i> 請求情報</h1>
+                {% if user.subscription_status == 'active' %}
+                    <span class="badge bg-success fs-6">有効なサブスクリプション</span>
+                {% elif user.subscription_status == 'trial' %}
+                    <span class="badge bg-info fs-6">無料トライアル中</span>
+                {% else %}
+                    <span class="badge bg-danger fs-6">サブスクリプション無効</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左カラム：現在のプラン情報 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> 現在のプラン</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.subscription_status == 'trial' %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-gift"></i>
+                            <strong>無料トライアル期間中</strong><br>
+                            {% if user.trial_end_date %}
+                                終了予定日: {{ user.trial_end_date|date:"Y年m月d日" }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>プラン名</h6>
+                            <p class="fs-5 fw-bold text-primary">{{ user.get_plan_display_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>月額料金</h6>
+                            <p class="fs-5 fw-bold">¥{{ user.get_plan_price|floatformat:0 }}/月（税込）</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>キーワード上限</h6>
+                            <p>SEO・RPP各{{ user.get_keyword_limit|default:"無制限" }}個</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>ステータス</h6>
+                            {% if user.subscription_status == 'active' %}
+                                <span class="badge bg-success">有効</span>
+                            {% elif user.subscription_status == 'trial' %}
+                                <span class="badge bg-info">トライアル</span>
+                            {% elif user.subscription_status == 'past_due' %}
+                                <span class="badge bg-warning">支払い遅延</span>
+                            {% elif user.subscription_status == 'canceled' %}
+                                <span class="badge bg-secondary">キャンセル</span>
+                            {% else %}
+                                <span class="badge bg-danger">無効</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- プラン変更セクション -->
+            {% if user.subscription_status == 'trial' or user.subscription_status == 'active' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> プラン変更</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- スタンダードプラン -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-danger h-100">
+                                <div class="card-header bg-danger text-white text-center py-3">
+                                    <h6 class="mb-0">スタンダードプラン</h6>
+                                    <small>最もお得</small>
+                                </div>
+                                <div class="card-body text-center p-3">
+                                    <div class="price mb-3">
+                                        <span class="h4 fw-bold">¥2,980</span>
+                                        <span class="text-muted">/月</span>
+                                    </div>
+                                    <ul class="list-unstyled small mb-3">
+                                        <li><i class="fas fa-check text-success"></i> SEOキーワード30個</li>
+                                        <li><i class="fas fa-check text-success"></i> RPPキーワード30個</li>
+                                        <li><i class="fas fa-check text-success"></i> 全機能利用可能</li>
+                                    </ul>
+                                    {% if user.subscription_plan == 'standard' %}
+                                        <button class="btn btn-secondary w-100" disabled>
+                                            現在のプラン
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-outline-danger w-100" onclick="changePlan('standard')">
+                                            このプランに変更
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- マスタープラン -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-warning h-100">
+                                <div class="card-header bg-warning text-dark text-center py-3">
+                                    <h6 class="mb-0">マスタープラン</h6>
+                                    <small>本格運用向け</small>
+                                </div>
+                                <div class="card-body text-center p-3">
+                                    <div class="price mb-3">
+                                        <span class="h4 fw-bold">¥4,980</span>
+                                        <span class="text-muted">/月</span>
+                                    </div>
+                                    <ul class="list-unstyled small mb-3">
+                                        <li><i class="fas fa-check text-success"></i> SEOキーワード100個</li>
+                                        <li><i class="fas fa-check text-success"></i> RPPキーワード100個</li>
+                                        <li><i class="fas fa-check text-success"></i> 優先サポート</li>
+                                    </ul>
+                                    {% if user.subscription_plan == 'master' %}
+                                        <button class="btn btn-secondary w-100" disabled>
+                                            現在のプラン
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-outline-warning w-100" onclick="changePlan('master')">
+                                            このプランに変更
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 支払い方法セクション -->
+            {% if user.subscription_status == 'trial' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> 支払い方法の登録</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>トライアル期間終了に向けて支払い方法を登録してください</strong><br>
+                        カード情報を登録することで、トライアル終了後も継続してサービスをご利用いただけます。
+                    </div>
+
+                    <form id="payment-form">
+                        <div class="mb-3">
+                            <label class="form-label">カード情報</label>
+                            <div id="card-element" class="form-control" style="padding: 12px;">
+                                <!-- Stripe Elements will create form elements here -->
+                            </div>
+                            <div id="card-errors" role="alert" class="text-danger mt-2"></div>
+                        </div>
+
+                        <button id="submit-payment" class="btn btn-primary btn-lg w-100">
+                            <span id="button-text">
+                                <i class="fas fa-lock"></i> 支払い方法を登録してサブスクリプション開始
+                            </span>
+                            <div id="spinner" class="spinner-border spinner-border-sm d-none" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 右カラム：アクションメニュー -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> アクション</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.subscription_status == 'active' %}
+                        <button class="btn btn-danger w-100 mb-3" onclick="cancelSubscription()">
+                            <i class="fas fa-times"></i> サブスクリプションをキャンセル
+                        </button>
+                        <button class="btn btn-outline-primary w-100 mb-3" onclick="updatePaymentMethod()">
+                            <i class="fas fa-edit"></i> 支払い方法を変更
+                        </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'accounts:settings' %}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-arrow-left"></i> 設定に戻る
+                    </a>
+                </div>
+            </div>
+
+            <!-- 注意事項 -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> ご注意</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> 初月は完全無料</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> いつでもキャンセル可能</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> プラン変更は即時反映</li>
+                        <li class="mb-0"><i class="fas fa-check text-success"></i> 日割り計算で請求</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.price {
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+#card-element {
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#card-element:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.StripeElement {
+    height: 40px;
+    padding: 10px 12px;
+    color: #32325d;
+    background-color: white;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.StripeElement--focus {
+    box-shadow: 0 1px 3px 0 #cfd7df;
+}
+
+.StripeElement--invalid {
+    border-color: #fa755a;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+const stripe = Stripe('{{ stripe_public_key }}');
+const elements = stripe.elements();
+
+// Create card element
+const cardElement = elements.create('card', {
+    style: {
+        base: {
+            fontSize: '16px',
+            color: '#424770',
+            '::placeholder': {
+                color: '#aab7c4',
+            },
+        },
+    },
+});
+
+cardElement.mount('#card-element');
+
+// Handle form submission
+const form = document.getElementById('payment-form');
+if (form) {
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        
+        const submitButton = document.getElementById('submit-payment');
+        const buttonText = document.getElementById('button-text');
+        const spinner = document.getElementById('spinner');
+        
+        // Disable button and show spinner
+        submitButton.disabled = true;
+        buttonText.classList.add('d-none');
+        spinner.classList.remove('d-none');
+        
+        try {
+            // Create subscription
+            const response = await fetch('{% url "accounts:create_subscription" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: JSON.stringify({
+                    plan: '{{ user.subscription_plan }}'
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const { error } = await stripe.confirmCardPayment(data.client_secret, {
+                    payment_method: {
+                        card: cardElement,
+                    }
+                });
+                
+                if (error) {
+                    document.getElementById('card-errors').textContent = error.message;
+                } else {
+                    // Success - redirect to dashboard
+                    window.location.href = '{% url "accounts:dashboard" %}';
+                }
+            } else {
+                document.getElementById('card-errors').textContent = data.error;
+            }
+        } catch (error) {
+            document.getElementById('card-errors').textContent = '通信エラーが発生しました。';
+        }
+        
+        // Re-enable button
+        submitButton.disabled = false;
+        buttonText.classList.remove('d-none');
+        spinner.classList.add('d-none');
+    });
+}
+
+// Plan change function
+function changePlan(newPlan) {
+    if (confirm(`プランを変更しますか？変更は即座に反映され、日割り計算で請求されます。`)) {
+        fetch('{% url "accounts:change_plan" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({
+                plan: newPlan
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('プラン変更に失敗しました: ' + data.error);
+            }
+        });
+    }
+}
+
+// Cancel subscription function
+function cancelSubscription() {
+    if (confirm('サブスクリプションをキャンセルしますか？次回請求日まではサービスを継続してご利用いただけます。')) {
+        fetch('{% url "accounts:cancel_subscription" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('キャンセルに失敗しました: ' + data.error);
+            }
+        });
+    }
+}
+
+// Update payment method function
+function updatePaymentMethod() {
+    alert('支払い方法の変更機能は近日実装予定です。');
+}
+</script>
+{% csrf_token %}
+{% endblock %}
