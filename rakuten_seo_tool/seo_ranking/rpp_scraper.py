@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class RPPScraper:
     """楽天RPP広告スクレイピングクラス"""
     
-    def __init__(self, delay_between_requests: float = 1.0):
+    def __init__(self, delay_between_requests: float = 0.3):
         """
         初期化
         
@@ -40,10 +40,11 @@ class RPPScraper:
         
         # 最小限のHTTPヘッダーで高速化
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (compatible; SearchBot/1.0)',
+            'User-Agent': 'Mozilla/5.0',
             'Accept': 'text/html',
-            'Accept-Encoding': 'gzip',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache'
         })
     
     def search_rpp_ads(self, keyword: str, max_pages: int = 3) -> Tuple[List[Dict], bool]:
@@ -74,7 +75,7 @@ class RPPScraper:
                     logger.debug(f"ページ {page} でRPP広告が見つかりませんでした")
                     
                     # 連続2ページで広告が見つからない場合は終了（高速化）
-                    if consecutive_empty_pages >= 2:
+                    if consecutive_empty_pages >= 1 and page > 1:  # 2ページ目以降は1ページ空で終了
                         logger.debug(f"連続{consecutive_empty_pages}ページで広告なし、検索終了")
                         break
                     continue
@@ -98,8 +99,8 @@ class RPPScraper:
                     logger.debug(f"15位に達したため検索を終了")
                     break
                 
-                # リクエスト間隔を空ける
-                if page < max_pages:
+                # リクエスト間隔を空ける（効率化のため短縮）
+                if page < max_pages and len(ads) < 15:  # 15位分整ったら間隔なし
                     time.sleep(self.delay)
             
             logger.info(f"RPP検索完了: {keyword} - 総広告数: {len(ads)}")
@@ -131,11 +132,11 @@ class RPPScraper:
             logger.debug(f"リクエスト URL: {url}")
             
             # ページを取得（適切なタイムアウト設定）
-            response = self.session.get(url, timeout=8)
+            response = self.session.get(url, timeout=8, stream=False)
             response.raise_for_status()
             
             # BeautifulSoupでHTML解析（高速パーサー使用）
-            soup = BeautifulSoup(response.content, 'lxml')
+            soup = BeautifulSoup(response.content, 'html.parser')
             
             # RPP広告を抽出
             ads = self._extract_rpp_ads(soup, page)
@@ -165,7 +166,7 @@ class RPPScraper:
         
         try:
             # 高速化：__INITIAL_STATE__を効率的に抽出
-            script_tags = soup.find_all('script', limit=20)  # 最初の20個のスクリプトタグのみチェック
+            script_tags = soup.find_all('script', limit=15)  # 最初の15個のスクリプトタグのみチェック
             initial_state_found = False
             
             for script in script_tags:
@@ -178,7 +179,11 @@ class RPPScraper:
                         # JSONの終端を見つける（次の;</の手前まで）
                         end_index = script_content.find(';\n', start_index)
                         if end_index == -1:
-                            end_index = len(script_content)
+                            end_index = script_content.find('};', start_index)
+                            if end_index != -1:
+                                end_index += 1  # }を含める
+                            else:
+                                end_index = len(script_content)
                         
                         json_str = script_content[start_index:end_index].strip()
                         
@@ -196,7 +201,7 @@ class RPPScraper:
                         
                         # 通常のパスで見つからない場合は効率的な検索を実行
                         if not items:
-                            def find_items_optimized(obj, max_depth=5, current_depth=0):
+                            def find_items_optimized(obj, max_depth=3, current_depth=0):
                                 """効率化された商品リスト検索（深度制限付き）"""
                                 if current_depth > max_depth:
                                     return None
@@ -220,10 +225,9 @@ class RPPScraper:
                                                     return result
                                 elif isinstance(obj, list) and len(obj) > 0:
                                     # 最初の要素のみチェック（パフォーマンス重視）
-                                    if len(obj) > 0:
-                                        result = find_items_optimized(obj[0], max_depth, current_depth + 1)
-                                        if result:
-                                            return result
+                                    result = find_items_optimized(obj[0], max_depth, current_depth + 1)
+                                    if result:
+                                        return result
                                 return None
                             
                             items = find_items_optimized(initial_state) or []
@@ -291,8 +295,8 @@ class RPPScraper:
                                 logger.debug(f"RPP広告検出: {ad_data['position_on_page']}位 - {product_name[:30]} (店舗: {ad_data['shop_name']})")
                                 position_on_page += 1
                                 
-                                # 15広告見つかったら早期終了（高速化）
-                                if len(ads) >= 15:
+                                # 各ページで8広告見つかったら早期終了（高速化）
+                                if len(ads) >= 8:
                                     break
                         
                         initial_state_found = True
@@ -355,8 +359,8 @@ class RPPScraper:
             
             # JSON-LDで見つからない場合は従来の方法を使用
             if not ads:
-                # [PR]マークを持つ要素を直接検索
-                pr_links = soup.find_all('a', class_=re.compile(r'title-link', re.I))
+                # [PR]マークを持つ要素を直接検索（最大20個に制限）
+                pr_links = soup.find_all('a', class_=re.compile(r'title-link', re.I), limit=20)
                 for link in pr_links:
                     # [PR]テキストを含むかチェック
                     if '[PR]' in link.get_text():
@@ -364,11 +368,17 @@ class RPPScraper:
                         if ad_data:
                             ads.append(ad_data)
                             position_on_page += 1
+                            if len(ads) >= 10:  # 10広告で終了
+                                break
                 
-                # 通常の商品コンテナからも検索
-                product_containers = soup.find_all(['div', 'li'], class_=re.compile(r'searchresult|product|item', re.I))
+                # 通常の商品コンテナからも検索（最大50個に制限）
+                product_containers = soup.find_all(['div', 'li'], class_=re.compile(r'searchresult|product|item', re.I), limit=50)
                 
-                for container in product_containers:
+                for i, container in enumerate(product_containers):
+                    # 30個以上チェックしたら終了（高速化）
+                    if i >= 30:
+                        break
+                        
                     # [PR]マークまたは「広告」「Ad」などの表示を探す
                     ad_marker = container.find(['span', 'div', 'p', 'a'], 
                                              text=re.compile(r'\[PR\]|広告|Ad|スポンサー', re.I))
@@ -386,6 +396,8 @@ class RPPScraper:
                     if ad_data:
                         ads.append(ad_data)
                         position_on_page += 1
+                        if len(ads) >= 10:  # 10広告で終了
+                            break
             
             logger.debug(f"ページ {page} でRPP広告 {len(ads)} 件を発見")
             

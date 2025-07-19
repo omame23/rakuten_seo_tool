@@ -345,7 +345,7 @@ def rpp_keyword_search(request, keyword_id):
             keyword=keyword.keyword,
             target_shop_id=keyword.rakuten_shop_id,
             target_product_url=keyword.target_product_url,
-            max_pages=3  # ページ数を3に変更してパフォーマンス向上
+            max_pages=3  # 3ページまで検索
         )
         
         execution_time = time.time() - start_time
