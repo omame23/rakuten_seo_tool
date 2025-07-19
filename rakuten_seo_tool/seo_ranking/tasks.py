@@ -190,8 +190,8 @@ def execute_rpp_bulk_search(user_id, bulk_log_id):
                     # 広告データを保存
                     for ad_data in result['ads']:
                         RPPAd.objects.create(
-                            result=rpp_result,
-                            position=ad_data.get('rank', 0),
+                            rpp_result=rpp_result,
+                            rank=ad_data.get('rank', 0),
                             product_name=ad_data.get('product_name', ''),
                             product_url=ad_data.get('product_url', ''),
                             product_id=ad_data.get('product_id', ''),
