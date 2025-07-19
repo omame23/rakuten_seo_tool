@@ -60,16 +60,7 @@
             </div>
             {% endif %}
             
-            <!-- サブスクリプション状態 -->
-            {% if not has_active_subscription %}
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle"></i>
-                <strong>サブスクリプションが無効です。</strong> 
-                全機能を利用するには有効なサブスクリプションが必要です。
-                <a href="{% url 'accounts:billing' %}" class="alert-link">請求情報を確認</a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
+            <!-- 新規登録ユーザーはStripe決済済みなので警告表示は不要 -->
             
             <!-- 概要カード -->
             <div class="row mb-4">
