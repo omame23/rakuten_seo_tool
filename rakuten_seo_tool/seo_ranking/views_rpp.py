@@ -810,7 +810,7 @@ def rpp_bulk_search(request):
                 
                 # 適切な間隔を空ける
                 if i > 1:
-                    time.sleep(2)  # 2秒間隔
+                    time.sleep(1.5)  # 1.5秒間隔
                 
                 # RPP順位検索を実行
                 from .rpp_scraper import scrape_rpp_ranking

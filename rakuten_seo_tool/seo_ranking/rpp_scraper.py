@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class RPPScraper:
     """楽天RPP広告スクレイピングクラス"""
     
-    def __init__(self, delay_between_requests: float = 2.0):
+    def __init__(self, delay_between_requests: float = 1.0):
         """
         初期化
         
@@ -54,20 +54,21 @@ class RPPScraper:
         
         try:
             for page in range(1, max_pages + 1):
-                logger.info(f"RPP検索: {keyword} - ページ {page}")
+                logger.debug(f"RPP検索: {keyword} - ページ {page}")
                 
                 # ページのスクレイピング
                 page_ads = self._scrape_page(keyword, page)
                 
                 if not page_ads:
                     # 広告が見つからない場合、次のページをチェック
-                    logger.info(f"ページ {page} でRPP広告が見つかりませんでした")
+                    logger.debug(f"ページ {page} でRPP広告が見つかりませんでした")
                     continue
                 
                 # 全体順位を設定
                 for ad in page_ads:
                     # 15位まででカットオフ
                     if overall_rank > 15:
+                        logger.info(f"15位に達したため広告処理を終了")
                         break
                     
                     ad['rank'] = overall_rank
@@ -77,7 +78,7 @@ class RPPScraper:
                 
                 # 15位に達したら検索終了
                 if overall_rank > 15:
-                    logger.info(f"15位に達したため検索を終了")
+                    logger.debug(f"15位に達したため検索を終了")
                     break
                 
                 # リクエスト間隔を空ける
@@ -110,7 +111,7 @@ class RPPScraper:
             if page > 1:
                 url += f"?p={page}"
             
-            logger.info(f"リクエスト URL: {url}")
+            logger.debug(f"リクエスト URL: {url}")
             
             # ページを取得
             response = self.session.get(url, timeout=10)
@@ -197,7 +198,7 @@ class RPPScraper:
                             
                             items = find_items_recursive(initial_state) or []
                         
-                        logger.info(f"検索結果アイテム数: {len(items)}")
+                        logger.debug(f"検索結果アイテム数: {len(items)}")
                         
                         for i, item in enumerate(items, 1):
                             # アイテムがNoneでないかチェック
@@ -269,7 +270,7 @@ class RPPScraper:
             
             # __INITIAL_STATE__が見つからない場合は従来のJSON-LD方式
             if not initial_state_found:
-                logger.info("__INITIAL_STATE__が見つからないため、JSON-LD方式にフォールバック")
+                logger.debug("__INITIAL_STATE__が見つからないため、JSON-LD方式にフォールバック")
                 script_tags = soup.find_all('script', type='application/ld+json')
                 for script in script_tags:
                     try:
@@ -353,14 +354,14 @@ class RPPScraper:
                         ads.append(ad_data)
                         position_on_page += 1
             
-            logger.info(f"ページ {page} でRPP広告 {len(ads)} 件を発見")
+            logger.debug(f"ページ {page} でRPP広告 {len(ads)} 件を発見")
             
             # 現在のページでstepmarketが含まれているかもログ出力
             stepmarket_found = [ad for ad in ads if 'stepmarket' in ad.get('shop_name', '').lower()]
             if stepmarket_found:
-                logger.info(f"stepmarket商品を {len(stepmarket_found)} 件発見")
+                logger.debug(f"stepmarket商品を {len(stepmarket_found)} 件発見")
                 for ad in stepmarket_found:
-                    logger.info(f"  - {ad.get('position_on_page')}位: {ad.get('product_name', '')[:50]}")
+                    logger.debug(f"  - {ad.get('position_on_page')}位: {ad.get('product_name', '')[:50]}")
             
             return ads
             
