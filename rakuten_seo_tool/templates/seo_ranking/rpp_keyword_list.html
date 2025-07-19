@@ -63,6 +63,30 @@
                 </div>
             </div>
             
+            <!-- 処理中ステータス表示 -->
+            {% if has_pending_bulk_search %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div>
+                        <strong><i class="fas fa-clock"></i> RPP一括検索が処理中です</strong><br>
+                        <small>
+                            開始時刻: {{ pending_bulk_search.executed_at|date:"H:i:s" }} 
+                            | 対象: {{ pending_bulk_search.keywords_count }}件
+                            | バックグラウンドで並行処理実行中...
+                        </small>
+                    </div>
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                            <i class="fas fa-sync"></i> 状況確認
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- 登録数情報 -->
             <div class="alert alert-info">
                 <div class="row align-items-center">

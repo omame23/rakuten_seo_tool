@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime, timedelta
 import math
-from .models_rpp import RPPKeyword, RPPResult, RPPAd, RPPSearchLog, RPPBulkSearchLog
+from .models import RPPKeyword, RPPResult, RPPAd, RPPSearchLog, RPPBulkSearchLog
 from .forms_rpp import RPPKeywordForm, BulkRPPKeywordForm
 from .rpp_scraper import scrape_rpp_ranking
 import logging
@@ -90,6 +90,15 @@ def rpp_keyword_list(request):
     can_execute_bulk_search = RPPBulkSearchLog.can_execute_today(request.user)
     last_execution = RPPBulkSearchLog.get_today_execution(request.user)
     
+    # 処理中のバルク検索ログを確認
+    user_for_check = target_user if target_user else request.user
+    pending_bulk_search = RPPBulkSearchLog.objects.filter(
+        user=user_for_check,
+        is_completed=False
+    ).order_by('-executed_at').first()
+    
+    has_pending_bulk_search = pending_bulk_search is not None
+    
     return render(request, 'seo_ranking/rpp_keyword_list.html', {
         'page_obj': page_obj,
         'search_query': search_query,
@@ -99,6 +108,8 @@ def rpp_keyword_list(request):
         'can_execute_bulk_search': can_execute_bulk_search,
         'last_execution': last_execution,
         'target_user': target_user,
+        'has_pending_bulk_search': has_pending_bulk_search,
+        'pending_bulk_search': pending_bulk_search,
     })
 
 

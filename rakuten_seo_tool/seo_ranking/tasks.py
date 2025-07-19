@@ -453,7 +453,7 @@ def execute_single_rpp_search(keyword_id):
     単一キーワードのRPP検索を実行する並行処理用タスク
     """
     try:
-        from .models_rpp import RPPKeyword, RPPResult, RPPAd
+        from .models import RPPKeyword, RPPResult, RPPAd
         
         # キーワード取得
         try:
@@ -577,7 +577,7 @@ def execute_parallel_rpp_bulk_search(user_id, keyword_ids, bulk_log_id):
     try:
         from celery import group
         from accounts.models import User
-        from .models_rpp import RPPBulkSearchLog
+        from .models import RPPBulkSearchLog
         
         user = User.objects.get(id=user_id)
         bulk_log = RPPBulkSearchLog.objects.get(id=bulk_log_id)
