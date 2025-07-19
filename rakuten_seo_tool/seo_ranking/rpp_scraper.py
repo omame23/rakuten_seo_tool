@@ -29,14 +29,23 @@ class RPPScraper:
         self.delay = delay_between_requests
         self.session = requests.Session()
         
-        # User-Agentを設定（一般的なブラウザを模倣）
+        # コネクションプール設定でネットワーク効率化
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=20,
+            max_retries=0  # リトライせずに高速化
+        )
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+        
+        # User-Agentを設定（軽量で高速なブラウザを模倣）
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'ja,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'no-cache',
         })
     
     def search_rpp_ads(self, keyword: str, max_pages: int = 3) -> Tuple[List[Dict], bool]:
@@ -114,12 +123,12 @@ class RPPScraper:
             
             logger.debug(f"リクエスト URL: {url}")
             
-            # ページを取得
-            response = self.session.get(url, timeout=10)
+            # ページを取得（タイムアウト短縮で応答性向上）
+            response = self.session.get(url, timeout=5)
             response.raise_for_status()
             
-            # BeautifulSoupでHTML解析
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # BeautifulSoupでHTML解析（高速パーサー使用）
+            soup = BeautifulSoup(response.content, 'lxml')
             
             # RPP広告を抽出
             ads = self._extract_rpp_ads(soup, page)
