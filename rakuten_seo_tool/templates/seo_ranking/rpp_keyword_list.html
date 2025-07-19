@@ -298,10 +298,10 @@ function executeBulkRPPSearch() {
     const keywordRows = document.querySelectorAll('tbody tr:not(.no-data)');
     const keywordCount = keywordRows.length;
     
-    // 推定実行時間を計算（キーワード1つあたり13秒 + 30秒のマージン）
-    const estimatedTime = Math.ceil((keywordCount * 13 + 30) / 60); // 分単位
+    // 並行処理の推定実行時間を計算（キーワード1つあたり2秒 + 5秒のマージン）
+    const estimatedTime = Math.ceil((keywordCount * 2 + 5) / 60); // 分単位
     
-    if (!confirm(`登録されているすべての有効なRPPキーワードの検索を実行しますか？\n\n詳細:\n- 対象キーワード数: ${keywordCount}件\n- 推定実行時間: 約${estimatedTime}分\n- 一般ユーザーは1日1回のみ実行可能です\n- 実行中はページを閉じないでください`)) {
+    if (!confirm(`登録されているすべての有効なRPPキーワードの検索を実行しますか？\n\n詳細:\n- 対象キーワード数: ${keywordCount}件\n- 推定実行時間: 約${estimatedTime}分（並行処理で高速化）\n- 一般ユーザーは1日1回のみ実行可能です\n- バックグラウンドで実行されます`)) {
         return;
     }
     
@@ -314,8 +314,8 @@ function executeBulkRPPSearch() {
     // プログレス表示用のモーダルを作成
     showBulkSearchProgress();
     
-    // タイムアウト時間を動的に計算（キーワード数 × 13秒 + 60秒のマージン、ミリ秒単位）
-    const timeoutMs = (keywordCount * 13 + 60) * 1000;
+    // タイムアウト時間を動的に計算（並行処理は30秒固定、ミリ秒単位）
+    const timeoutMs = 30 * 1000;
     
     // AbortController for timeout
     const controller = new AbortController();
@@ -350,8 +350,17 @@ function executeBulkRPPSearch() {
         console.log('Response data:', data);
         
         if (data.success) {
-            alert(`一括検索が完了しました!\n\n成功: ${data.success_count}件\nエラー: ${data.error_count}件\n実行時間: ${data.execution_time}秒`);
-            location.reload();
+            // 並行処理でバックグラウンド実行開始
+            alert(`RPP一括検索を開始しました！\n\n詳細:\n- 対象キーワード数: ${data.keywords_count}件\n- 推定完了時間: 約${data.estimated_time_minutes}分\n- 処理方式: 並行処理（高速化）\n\nバックグラウンドで処理中です。\n完了後、ページを更新して結果をご確認ください。`);
+            
+            // ボタンを元に戻す
+            button.disabled = false;
+            button.innerHTML = originalContent;
+            
+            // 5秒後に自動リロード（進捗確認のため）
+            setTimeout(() => {
+                location.reload();
+            }, 5000);
         } else {
             alert(`エラーが発生しました: ${data.message}`);
             button.disabled = false;

@@ -445,3 +445,182 @@ def save_rpp_search_data_async(keyword_id, search_result, execution_time):
     except Exception as e:
         logger.error(f"RPP非同期データ保存エラー: {str(e)}")
         return {'success': False, 'error': str(e)}
+
+
+@shared_task
+def execute_single_rpp_search(keyword_id):
+    """
+    単一キーワードのRPP検索を実行する並行処理用タスク
+    """
+    try:
+        from .models_rpp import RPPKeyword, RPPResult, RPPAd
+        
+        # キーワード取得
+        try:
+            keyword = RPPKeyword.objects.get(id=keyword_id)
+        except RPPKeyword.DoesNotExist:
+            logger.error(f"RPPキーワードが見つかりません: ID {keyword_id}")
+            return {'success': False, 'error': 'Keyword not found', 'keyword_id': keyword_id}
+        
+        logger.info(f"RPP並行検索開始: {keyword.keyword} ({keyword.rakuten_shop_id})")
+        
+        start_time = time.time()
+        
+        # RPP順位検索を実行
+        result = scrape_rpp_ranking(
+            keyword=keyword.keyword,
+            target_shop_id=keyword.rakuten_shop_id,
+            target_product_url=keyword.target_product_url
+        )
+        
+        execution_time = time.time() - start_time
+        
+        if result['success']:
+            # 結果を保存
+            rpp_result = RPPResult.objects.create(
+                keyword=keyword,
+                rank=result['rank'],
+                total_ads=result['total_ads'],
+                pages_checked=3,
+                is_found=result['is_found'],
+                error_message=result['error']
+            )
+            
+            # 広告データを保存（bulk_create使用で高速化）
+            rpp_ads_to_create = []
+            for ad_data in result['ads']:
+                # 自社商品かどうかを判定
+                is_own = False
+                if keyword.rakuten_shop_id.lower() in ad_data.get('shop_name', '').lower():
+                    is_own = True
+                elif keyword.target_product_url and ad_data.get('product_url'):
+                    if keyword.target_product_url in ad_data['product_url']:
+                        is_own = True
+                
+                rpp_ad = RPPAd(
+                    rpp_result=rpp_result,
+                    rank=ad_data.get('rank', 0),
+                    product_name=ad_data.get('product_name', ''),
+                    product_url=ad_data.get('product_url', ''),
+                    product_id=ad_data.get('product_id', ''),
+                    price=ad_data.get('price'),
+                    shop_name=ad_data.get('shop_name', ''),
+                    image_url=ad_data.get('image_url', ''),
+                    catchcopy=ad_data.get('catchcopy', ''),
+                    page_number=ad_data.get('page_number', 1),
+                    position_on_page=ad_data.get('position_on_page', 0),
+                    is_own_product=is_own
+                )
+                rpp_ads_to_create.append(rpp_ad)
+            
+            # 一括作成で高速化
+            if rpp_ads_to_create:
+                try:
+                    RPPAd.objects.bulk_create(rpp_ads_to_create)
+                except Exception as bulk_error:
+                    logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
+                    # フォールバック：個別作成
+                    for rpp_ad in rpp_ads_to_create:
+                        try:
+                            rpp_ad.save()
+                        except Exception:
+                            pass
+            
+            logger.info(f"RPP並行検索成功: {keyword.keyword} - 順位: {result['rank']} - 実行時間: {execution_time:.2f}秒")
+            
+            return {
+                'success': True,
+                'keyword_id': keyword_id,
+                'keyword': keyword.keyword,
+                'rank': result['rank'],
+                'is_found': result['is_found'],
+                'total_ads': result['total_ads'],
+                'execution_time': execution_time,
+                'rpp_result_id': rpp_result.id
+            }
+        else:
+            # エラーの場合も結果を保存
+            RPPResult.objects.create(
+                keyword=keyword,
+                rank=None,
+                total_ads=0,
+                pages_checked=0,
+                is_found=False,
+                error_message=result['error']
+            )
+            
+            logger.error(f"RPP並行検索失敗: {keyword.keyword} - エラー: {result['error']}")
+            
+            return {
+                'success': False,
+                'keyword_id': keyword_id,
+                'keyword': keyword.keyword,
+                'error': result['error'],
+                'execution_time': execution_time
+            }
+        
+    except Exception as e:
+        logger.error(f"RPP並行検索タスクエラー: {str(e)}")
+        return {
+            'success': False,
+            'keyword_id': keyword_id,
+            'error': str(e),
+            'execution_time': 0
+        }
+
+
+@shared_task
+def execute_parallel_rpp_bulk_search(user_id, keyword_ids, bulk_log_id):
+    """
+    複数キーワードを並行処理でRPP検索する管理タスク
+    """
+    try:
+        from celery import group
+        from accounts.models import User
+        from .models_rpp import RPPBulkSearchLog
+        
+        user = User.objects.get(id=user_id)
+        bulk_log = RPPBulkSearchLog.objects.get(id=bulk_log_id)
+        
+        logger.info(f"RPP並行一括検索開始: user {user.id} - {len(keyword_ids)}件")
+        
+        start_time = time.time()
+        
+        # グループタスクで並行実行
+        job = group(execute_single_rpp_search.s(keyword_id) for keyword_id in keyword_ids)
+        result = job.apply_async()
+        
+        # 全タスクの完了を待機
+        results = result.get()
+        
+        # 結果を集計
+        success_count = sum(1 for r in results if r['success'])
+        error_count = len(results) - success_count
+        total_execution_time = time.time() - start_time
+        
+        # 実行ログを更新
+        bulk_log.is_completed = True
+        bulk_log.success_count = success_count
+        bulk_log.error_count = error_count
+        bulk_log.total_execution_time = total_execution_time
+        bulk_log.save()
+        
+        logger.info(f"RPP並行一括検索完了: user {user.id} - 成功: {success_count}, エラー: {error_count}, 実行時間: {total_execution_time:.2f}秒")
+        
+        return {
+            'success': True,
+            'success_count': success_count,
+            'error_count': error_count,
+            'total_execution_time': total_execution_time,
+            'results': results
+        }
+        
+    except Exception as e:
+        logger.error(f"RPP並行一括検索エラー: {str(e)}")
+        try:
+            bulk_log = RPPBulkSearchLog.objects.get(id=bulk_log_id)
+            bulk_log.is_completed = False
+            bulk_log.save()
+        except:
+            pass
+        return {'success': False, 'error': str(e)}

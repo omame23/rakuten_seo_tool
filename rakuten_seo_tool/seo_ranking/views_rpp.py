@@ -768,125 +768,33 @@ def rpp_bulk_search(request):
         )
         
         store_name = target_user.company_name if user.is_master else target_user.email
-        estimated_time = math.ceil((keywords.count() * 13 + 30) / 60)  # 推定時間（分）
-        logger.info(f"RPP一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件 - 推定時間: {estimated_time}分")
+        estimated_time = math.ceil((keywords.count() * 2 + 5) / 60)  # 並行処理の推定時間（分）
+        logger.info(f"RPP並行一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件 - 推定時間: {estimated_time}分")
         
-        # 同期処理として実行（バックグラウンドタスクの代わり）
-        start_time = time.time()
-        success_count = 0
-        error_count = 0
+        # キーワードIDのリストを作成
+        keyword_ids = list(keywords.values_list('id', flat=True))
         
-        # 各キーワードを順次実行
-        total_keywords = keywords.count()
-        for i, keyword in enumerate(keywords, 1):
-            try:
-                logger.info(f"RPP検索実行中: {keyword.keyword} ({keyword.rakuten_shop_id}) - {i}/{total_keywords}")
-                
-                # 適切な間隔を空ける
-                if i > 1:
-                    time.sleep(1.5)  # 1.5秒間隔
-                
-                # RPP順位検索を実行
-                from .rpp_scraper import scrape_rpp_ranking
-                result = scrape_rpp_ranking(
-                    keyword=keyword.keyword,
-                    target_shop_id=keyword.rakuten_shop_id,
-                    target_product_url=keyword.target_product_url
-                )
-                
-                if result['success']:
-                    # 結果を保存
-                    rpp_result = RPPResult.objects.create(
-                        keyword=keyword,
-                        rank=result['rank'],
-                        total_ads=result['total_ads'],
-                        pages_checked=3,
-                        is_found=result['is_found'],
-                        error_message=result['error']
-                    )
-                    
-                    # 広告データを保存（bulk_create使用で高速化）
-                    rpp_ads_to_create = []
-                    for ad_data in result['ads']:
-                        rpp_ad = RPPAd(
-                            rpp_result=rpp_result,
-                            rank=ad_data.get('rank', 0),
-                            product_name=ad_data.get('product_name', ''),
-                            product_url=ad_data.get('product_url', ''),
-                            product_id=ad_data.get('product_id', ''),
-                            price=ad_data.get('price'),
-                            shop_name=ad_data.get('shop_name', ''),
-                            image_url=ad_data.get('image_url', ''),
-                            catchcopy=ad_data.get('catchcopy', ''),
-                            page_number=ad_data.get('page_number', 1),
-                            position_on_page=ad_data.get('position_on_page', 0)
-                        )
-                        rpp_ads_to_create.append(rpp_ad)
-                    
-                    # 一括作成で高速化
-                    if rpp_ads_to_create:
-                        try:
-                            RPPAd.objects.bulk_create(rpp_ads_to_create)
-                        except Exception as bulk_error:
-                            logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
-                            # フォールバック：個別作成
-                            for rpp_ad in rpp_ads_to_create:
-                                try:
-                                    rpp_ad.save()
-                                except Exception:
-                                    pass
-                    
-                    success_count += 1
-                    logger.info(f"RPP検索成功: {keyword.keyword} - 順位: {result['rank']}")
-                else:
-                    # エラーの場合も結果を保存
-                    RPPResult.objects.create(
-                        keyword=keyword,
-                        rank=None,
-                        total_ads=0,
-                        pages_checked=0,
-                        is_found=False,
-                        error_message=result['error']
-                    )
-                    error_count += 1
-                    logger.error(f"RPP検索失敗: {keyword.keyword} - エラー: {result['error']}")
-                
-            except Exception as e:
-                error_count += 1
-                logger.error(f"RPP検索エラー: {keyword.keyword} - {str(e)}")
-                
-                # エラーの場合も結果を保存
-                try:
-                    RPPResult.objects.create(
-                        keyword=keyword,
-                        rank=None,
-                        total_ads=0,
-                        pages_checked=0,
-                        is_found=False,
-                        error_message=str(e)
-                    )
-                except Exception as save_error:
-                    logger.error(f"結果保存エラー: {save_error}")
+        # 並行処理タスクをバックグラウンドで実行
+        from .tasks import execute_parallel_rpp_bulk_search
         
-        # 実行ログを更新
-        execution_time = time.time() - start_time
-        bulk_log.is_completed = True
-        bulk_log.success_count = success_count
-        bulk_log.error_count = error_count
-        bulk_log.total_execution_time = execution_time
-        bulk_log.save()
+        # 非同期タスクを開始
+        task = execute_parallel_rpp_bulk_search.delay(
+            user_id=target_user.id,
+            keyword_ids=keyword_ids,
+            bulk_log_id=bulk_log.id
+        )
         
         # 最終一括検索日を更新
         target_user.update_last_bulk_search_date()
         
-        logger.info(f"RPP一括検索完了: user {target_user.id} - 成功: {success_count}, エラー: {error_count}, 実行時間: {execution_time:.2f}秒")
+        logger.info(f"RPP並行一括検索タスク開始: user {target_user.id} - タスクID: {task.id}")
         
         return JsonResponse({
             'success': True,
-            'message': 'RPP一括検索が完了しました',
-            'success_count': success_count,
-            'error_count': error_count,
-            'execution_time': execution_time
+            'message': f'RPP一括検索をバックグラウンドで開始しました（{keywords.count()}件のキーワードを並行処理中）',
+            'task_id': task.id,
+            'keywords_count': keywords.count(),
+            'estimated_time_minutes': estimated_time
         })
         
     except Exception as e:
