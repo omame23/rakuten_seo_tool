@@ -462,8 +462,8 @@ def rpp_detail(request, result_id):
     else:
         result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
     
-    # 上位20広告を取得
-    top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')
+    # 上位10広告を取得（表示速度向上のため）
+    top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')[:10]
     
     return render(request, 'seo_ranking/rpp_detail.html', {
         'result': result,
@@ -480,8 +480,8 @@ def export_rpp_csv(request, result_id):
     else:
         result = get_object_or_404(RPPResult, id=result_id, keyword__user=request.user)
     
-    # 上位広告を取得
-    top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')
+    # 上位10広告を取得（CSV出力速度向上のため）
+    top_ads = RPPAd.objects.filter(rpp_result=result).order_by('rank')[:10]
     
     # CSVレスポンスを作成
     response = HttpResponse(content_type='text/csv; charset=utf-8')
