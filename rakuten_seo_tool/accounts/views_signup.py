@@ -60,6 +60,7 @@ class CustomSignupView(SignupView):
                     'quantity': 1,
                 }],
                 mode='subscription',
+                customer_email=user.email,  # 新規登録で入力されたメールアドレスを渡す
                 subscription_data={
                     'trial_period_days': 30,  # 30日間無料トライアル
                 },
