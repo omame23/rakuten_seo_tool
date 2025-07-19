@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}RPP結果詳細 - {{ result.keyword.keyword }} - 楽天SEO対策ツール{% endblock %}
+{% block title %}RPP結果詳細 - {{ result.keyword.keyword }} - 楽天検索順位確認ツール{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -49,7 +49,7 @@
                             <div class="text-center">
                                 {% if result.is_found %}
                                 <h2 class="text-primary mb-1">{{ result.rank }}位</h2>
-                                <p class="text-muted">RPP広告順位</p>
+                                <p class="text-muted">RPP順位確認</p>
                                 {% else %}
                                 <h2 class="text-warning mb-1">圏外</h2>
                                 <p class="text-muted">5ページ内に広告なし</p>
