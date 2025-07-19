@@ -107,9 +107,9 @@ def handle_subscription_updated(subscription):
         if subscription.get('items') and subscription['items']['data']:
             price_id = subscription['items']['data'][0]['price']['id']
             
-            if price_id == 'price_1RmVueQ5K9ikjqbDDkLo7lXg':  # スタンダードプラン
+            if price_id == 'price_1RmXcoLifu2YUCmRzmEJLAYd':  # スタンダードプラン
                 user.subscription_plan = 'standard'
-            elif price_id == 'price_1RmVvXQ5K9ikjqbDHsmutBvF':  # マスタープラン
+            elif price_id == 'price_1RmXdwLifu2YUCmRI3rZQUGH':  # マスタープラン
                 user.subscription_plan = 'master'
         
         user.save()

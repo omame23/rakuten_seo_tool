@@ -64,9 +64,9 @@ class CustomSignupView(SignupView):
                 # 選択されたプランに応じてPrice IDを決定
                 plan = form.cleaned_data.get('subscription_plan', 'standard')
                 if plan == 'standard':
-                    price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+                    price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
                 else:  # master
-                    price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+                    price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
                 
                 # トライアル付きサブスクリプションを作成
                 subscription = stripe.Subscription.create(
@@ -147,7 +147,7 @@ def custom_signup_view(request):
                 
                 # プランに応じてサブスクリプション作成
                 plan = form.cleaned_data.get('subscription_plan', 'standard')
-                price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg' if plan == 'standard' else 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+                price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd' if plan == 'standard' else 'price_1RmXdwLifu2YUCmRI3rZQUGH'
                 
                 subscription = stripe.Subscription.create(
                     customer=customer.id,

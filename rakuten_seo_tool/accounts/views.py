@@ -213,10 +213,10 @@ def create_checkout_session(request):
         
         # Price IDを決定
         if plan == 'standard':
-            price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+            price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
             plan_name = 'スタンダードプラン'
         elif plan == 'master':
-            price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+            price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
             plan_name = 'マスタープラン'
         else:
             return JsonResponse({'success': False, 'error': '無効なプランです'})
@@ -344,9 +344,9 @@ def create_subscription_signup(request):
         # Price IDを決定
         plan = data.get('plan', 'standard')
         if plan == 'standard':
-            price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+            price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
         elif plan == 'master':
-            price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+            price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
         else:
             return JsonResponse({'success': False, 'error': '無効なプランです'})
         
@@ -454,9 +454,9 @@ def change_plan(request):
         
         # Price IDを決定
         if new_plan == 'standard':
-            new_price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+            new_price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
         else:  # master
-            new_price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+            new_price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
         
         # 現在のサブスクリプションを取得
         if not request.user.stripe_customer_id:
