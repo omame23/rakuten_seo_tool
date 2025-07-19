@@ -35,7 +35,8 @@
       "Bash(ssh:*)",
       "Bash(git commit:*)",
       "Bash(grep:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

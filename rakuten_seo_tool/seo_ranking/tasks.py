@@ -46,7 +46,37 @@ def auto_keyword_search():
     # 各マスターユーザーの自動検索を実行
     for user in users_to_search:
         try:
-            execute_user_auto_search(user.id)
+            logger.info(f"Executing auto search for master user {user.email} (SEO: {user.auto_seo_search_enabled}, RPP: {user.auto_rpp_search_enabled})")
+            
+            seo_success = False
+            rpp_success = False
+            
+            # SEO自動検索
+            if user.auto_seo_search_enabled:
+                try:
+                    result = execute_user_auto_search(user.id)
+                    seo_success = result.get('success', False) if result else False
+                    logger.info(f"SEO auto search for master user {user.id}: {'success' if seo_success else 'failed'}")
+                except Exception as e:
+                    logger.error(f"SEO auto search failed for master user {user.id}: {e}")
+            
+            # 負荷軽減のため間隔を空ける
+            time.sleep(3)
+            
+            # RPP自動検索
+            if user.auto_rpp_search_enabled:
+                try:
+                    result = execute_user_auto_rpp_search(user.id)
+                    rpp_success = result.get('success', False) if result else False
+                    logger.info(f"RPP auto search for master user {user.id}: {'success' if rpp_success else 'failed'}")
+                except Exception as e:
+                    logger.error(f"RPP auto search failed for master user {user.id}: {e}")
+            
+            # どちらか一つでも成功した場合は日付を更新
+            if seo_success or rpp_success:
+                user.update_last_auto_search_date()
+                logger.info(f"Updated last auto search date for master user {user.id}")
+            
         except Exception as e:
             logger.error(f"Failed auto search for master user {user.id}: {e}")
     
