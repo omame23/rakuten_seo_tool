@@ -370,22 +370,22 @@ function executeBulkRPPSearch() {
     })
     .then(data => {
         clearTimeout(timeoutId); // タイムアウトをクリア
-        hideBulkSearchProgress();
         console.log('Response data:', data);
         
         if (data.success) {
-            // 並行処理でバックグラウンド実行開始
-            alert(`RPP一括検索を開始しました！\n\n詳細:\n- 対象キーワード数: ${data.keywords_count}件\n- 推定完了時間: 約${data.estimated_time_minutes}分\n- 処理方式: 並行処理（高速化）\n\nバックグラウンドで処理中です。\n完了後、ページを更新して結果をご確認ください。`);
+            // 並行処理でバックグラウンド実行開始 - alertは削除してステータス表示を継続
+            console.log(`RPP一括検索を開始しました - 対象: ${data.keywords_count}件, 推定時間: 約${data.estimated_time_minutes}分`);
             
-            // ボタンを元に戻す
-            button.disabled = false;
-            button.innerHTML = originalContent;
+            // ボタンは無効化したまま、プログレス表示は継続
+            // ボタンとプログレス表示は処理完了まで継続
             
-            // 5秒後に自動リロード（進捗確認のため）
+            // 10秒後に自動リロード（進捗確認のため）
             setTimeout(() => {
                 location.reload();
-            }, 5000);
+            }, 10000);
         } else {
+            // エラーの場合のみプログレス表示を隠す
+            hideBulkSearchProgress();
             alert(`エラーが発生しました: ${data.message}`);
             button.disabled = false;
             button.innerHTML = originalContent;
@@ -416,8 +416,9 @@ function showBulkSearchProgress() {
             <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 300px;">
                 <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
                 <h5>RPP一括検索実行中</h5>
-                <p class="text-muted mb-0">処理が完了するまでお待ちください...</p>
-                <small class="text-warning">ページを閉じないでください</small>
+                <p class="text-muted mb-2">並行処理でバックグラウンド実行中...</p>
+                <p class="text-muted mb-0 small">約10秒で完了予定</p>
+                <small class="text-warning">このページを閉じないでください</small>
             </div>
         </div>
     `;
