@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}認証メール再送信 - 楽天検索順位確認ツール{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm mt-5">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope fa-3x text-primary"></i>
+                    </div>
+                    
+                    <h2 class="text-center mb-4">認証メール再送信</h2>
+                    
+                    <p class="text-center text-muted mb-4">
+                        認証メールが届かない場合は、メールアドレスを入力して再送信してください。
+                    </p>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">メールアドレス</label>
+                            <input type="email" name="email" class="form-control" id="email" 
+                                   placeholder="例: user@example.com" required>
+                            <small class="form-text text-muted">登録時に使用したメールアドレスを入力してください</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sync"></i> 認証メールを再送信
+                            </button>
+                            <a href="{% url 'home' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-home"></i> トップページに戻る
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

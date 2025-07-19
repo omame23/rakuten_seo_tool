@@ -63,7 +63,7 @@ class CustomSignupView(SignupView):
                 subscription_data={
                     'trial_period_days': 30,  # 30日間無料トライアル
                 },
-                success_url=self.request.build_absolute_uri('/accounts/confirm-email/'),
+                success_url=self.request.build_absolute_uri('/accounts/email-verification-sent/'),
                 cancel_url=self.request.build_absolute_uri('/accounts/signup/'),
                 metadata={
                     'user_id': user.id,

@@ -7,6 +7,8 @@ from django.conf import settings
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.hashers import check_password
 from django.http import JsonResponse
+from allauth.account.models import EmailAddress
+from allauth.account.utils import send_email_confirmation
 import logging
 
 logger = logging.getLogger(__name__)
@@ -535,3 +537,47 @@ def cancel_subscription(request):
 
 
 # confirm_email ビューは削除（allauthのデフォルト処理を使用）
+
+
+def resend_email_verification(request):
+    """認証メール再送信"""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        if not email:
+            messages.error(request, 'メールアドレスを入力してください。')
+            return render(request, 'account/email_resend.html')
+        
+        try:
+            from .models import User
+            user = User.objects.get(email=email)
+            
+            # メールアドレスを取得または作成
+            email_address, created = EmailAddress.objects.get_or_create(
+                user=user,
+                email=user.email.lower(),
+                defaults={'verified': False, 'primary': True}
+            )
+            
+            # まだ認証されていない場合のみ送信
+            if not email_address.verified:
+                send_email_confirmation(request, user, signup=True)
+                messages.success(request, f'{email} 宛に認証メールを再送信しました。')
+                return render(request, 'account/verification_sent.html')
+            else:
+                messages.info(request, 'このメールアドレスは既に認証済みです。')
+                return redirect('account_login')
+                
+        except User.DoesNotExist:
+            messages.error(request, 'このメールアドレスのアカウントが見つかりません。')
+            return render(request, 'account/email_resend.html')
+        except Exception as e:
+            logger.error(f'Email resend error: {e}')
+            messages.error(request, '認証メール送信中にエラーが発生しました。')
+            return render(request, 'account/email_resend.html')
+    
+    return render(request, 'account/email_resend.html')
+
+
+def email_verification_sent(request):
+    """認証メール送信完了ページ"""
+    return render(request, 'account/verification_sent.html')

@@ -29,11 +29,11 @@
                         <i class="fas fa-exclamation-triangle"></i>
                         <strong>メールが届かない場合</strong><br>
                         迷惑メールフォルダもご確認ください。数分経ってもメールが届かない場合は、
-                        <a href="{% url 'account_email' %}">こちら</a>から再送信してください。
+                        <a href="{% url 'accounts:email_resend' %}">こちら</a>から再送信してください。
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <a href="{% url 'account_email' %}" class="btn btn-outline-primary">
+                        <a href="{% url 'accounts:email_resend' %}" class="btn btn-outline-primary">
                             <i class="fas fa-sync"></i> 認証メールを再送信
                         </a>
                         <a href="{% url 'home' %}" class="btn btn-secondary">
