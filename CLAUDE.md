@@ -111,10 +111,29 @@ git add .
 git commit -m "修正内容の説明"
 git push origin main
 
-# 2. Deploy to production server (サーバー再起動不要)
+# 2. Deploy to production server
 sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "cd /var/www/inspice/rakuten_seo_tool && git pull origin main"
 
-# 完了！Django開発サーバーが自動でコード変更を検知して反映されます
+# 3. 【重要】Gunicorn再起動でコード変更を反映
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "systemctl restart inspice.service"
+
+# 完了！新しいコードが本番環境に反映されます
+```
+
+### 【重要】本番環境での注意事項
+
+**⚠️ コード変更後は必ずGunicorn再起動が必要です**
+
+- **理由**: 本番環境はGunicornで動作しており、Django開発サーバーと異なり自動リロードされません
+- **手順**: `git pull`後に `systemctl restart inspice.service` を実行
+- **確認方法**: Gunicornログでプロセス再起動を確認
+
+```bash
+# Gunicorn再起動（コード変更反映のため）
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "systemctl restart inspice.service"
+
+# 再起動確認
+sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "systemctl status inspice.service"
 ```
 
 ### 常時稼働サービス確認
