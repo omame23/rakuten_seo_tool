@@ -38,14 +38,12 @@ class RPPScraper:
         self.session.mount('http://', adapter)
         self.session.mount('https://', adapter)
         
-        # User-Agentを設定（軽量で高速なブラウザを模倣）
+        # 最小限のHTTPヘッダーで高速化
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'ja,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate',
+            'User-Agent': 'Mozilla/5.0 (compatible; SearchBot/1.0)',
+            'Accept': 'text/html',
+            'Accept-Encoding': 'gzip',
             'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache',
         })
     
     def search_rpp_ads(self, keyword: str, max_pages: int = 3) -> Tuple[List[Dict], bool]:
@@ -62,6 +60,8 @@ class RPPScraper:
         ads = []
         overall_rank = 1
         
+        consecutive_empty_pages = 0
+        
         try:
             for page in range(1, max_pages + 1):
                 logger.debug(f"RPP検索: {keyword} - ページ {page}")
@@ -70,9 +70,16 @@ class RPPScraper:
                 page_ads = self._scrape_page(keyword, page)
                 
                 if not page_ads:
-                    # 広告が見つからない場合、次のページをチェック
+                    consecutive_empty_pages += 1
                     logger.debug(f"ページ {page} でRPP広告が見つかりませんでした")
+                    
+                    # 連続2ページで広告が見つからない場合は終了（高速化）
+                    if consecutive_empty_pages >= 2:
+                        logger.debug(f"連続{consecutive_empty_pages}ページで広告なし、検索終了")
+                        break
                     continue
+                else:
+                    consecutive_empty_pages = 0  # リセット
                 
                 # 全体順位を設定
                 for ad in page_ads:
@@ -123,8 +130,8 @@ class RPPScraper:
             
             logger.debug(f"リクエスト URL: {url}")
             
-            # ページを取得（タイムアウト短縮で応答性向上）
-            response = self.session.get(url, timeout=5)
+            # ページを取得（適切なタイムアウト設定）
+            response = self.session.get(url, timeout=8)
             response.raise_for_status()
             
             # BeautifulSoupでHTML解析（高速パーサー使用）
@@ -157,8 +164,8 @@ class RPPScraper:
         position_on_page = 1
         
         try:
-            # まず__INITIAL_STATE__からRPP広告情報を抽出
-            script_tags = soup.find_all('script')
+            # 高速化：__INITIAL_STATE__を効率的に抽出
+            script_tags = soup.find_all('script', limit=20)  # 最初の20個のスクリプトタグのみチェック
             initial_state_found = False
             
             for script in script_tags:
@@ -283,6 +290,10 @@ class RPPScraper:
                                 
                                 logger.debug(f"RPP広告検出: {ad_data['position_on_page']}位 - {product_name[:30]} (店舗: {ad_data['shop_name']})")
                                 position_on_page += 1
+                                
+                                # 15広告見つかったら早期終了（高速化）
+                                if len(ads) >= 15:
+                                    break
                         
                         initial_state_found = True
                         break
