@@ -475,6 +475,7 @@ def change_plan(request):
         
         data = json.loads(request.body)
         new_plan = data.get('plan')
+        user = request.user
         
         if new_plan not in ['standard', 'master']:
             return JsonResponse({'success': False, 'error': '無効なプランです'})
@@ -485,19 +486,40 @@ def change_plan(request):
         else:  # master
             new_price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
         
-        # 現在のサブスクリプションを取得
-        if not request.user.stripe_customer_id:
-            return JsonResponse({'success': False, 'error': 'カスタマーIDが見つかりません'})
+        # Stripeカスタマーを取得（stripe_customer_idがない場合はメールアドレスで検索）
+        stripe_customer_id = user.stripe_customer_id
+        
+        if not stripe_customer_id:
+            # メールアドレスでStripeカスタマーを検索
+            customers = stripe.Customer.list(email=user.email, limit=1)
+            if customers.data:
+                stripe_customer_id = customers.data[0].id
+                # 見つかったカスタマーIDをユーザーに保存
+                user.stripe_customer_id = stripe_customer_id
+                user.save()
+                logger.info(f'Found Stripe customer {stripe_customer_id} for user {user.id} by email')
+            else:
+                logger.error(f'No Stripe customer found for user {user.id} ({user.email})')
+                return JsonResponse({'success': False, 'error': 'Stripeカスタマーが見つかりません'})
         
         # サブスクリプション一覧を取得
         subscriptions = stripe.Subscription.list(
-            customer=request.user.stripe_customer_id,
+            customer=stripe_customer_id,
             status='active',
             limit=1
         )
         
         if not subscriptions.data:
-            return JsonResponse({'success': False, 'error': 'アクティブなサブスクリプションが見つかりません'})
+            # トライアル中のサブスクリプションも確認
+            subscriptions = stripe.Subscription.list(
+                customer=stripe_customer_id,
+                status='trialing',
+                limit=1
+            )
+            
+            if not subscriptions.data:
+                logger.error(f'No active or trialing subscriptions found for customer {stripe_customer_id}')
+                return JsonResponse({'success': False, 'error': 'アクティブなサブスクリプションが見つかりません'})
         
         subscription = subscriptions.data[0]
         
@@ -512,13 +534,14 @@ def change_plan(request):
         )
         
         # ユーザーのプラン情報を更新
-        request.user.subscription_plan = new_plan
-        request.user.save()
+        user.subscription_plan = new_plan
+        user.save()
         
+        logger.info(f'Plan changed successfully for user {user.id} to {new_plan}')
         return JsonResponse({'success': True})
         
     except Exception as e:
-        logger.error(f'Plan change error: {e}')
+        logger.error(f'Plan change error for user {request.user.id}: {e}')
         return JsonResponse({'success': False, 'error': str(e)})
 
 
