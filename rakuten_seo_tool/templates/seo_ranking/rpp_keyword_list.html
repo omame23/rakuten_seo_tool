@@ -294,7 +294,14 @@ function executeRPPSearch(keywordId, keywordName) {
 
 // RPP一括検索実行
 function executeBulkRPPSearch() {
-    if (!confirm('登録されているすべての有効なRPPキーワードの検索を実行しますか？\n\n注意:\n- 処理には時間がかかります（数分～数時間）\n- 一般ユーザーは1日1回のみ実行可能です\n- 実行中はページを閉じないでください')) {
+    // キーワード数を取得
+    const keywordRows = document.querySelectorAll('tbody tr:not(.no-data)');
+    const keywordCount = keywordRows.length;
+    
+    // 推定実行時間を計算（キーワード1つあたり13秒 + 30秒のマージン）
+    const estimatedTime = Math.ceil((keywordCount * 13 + 30) / 60); // 分単位
+    
+    if (!confirm(`登録されているすべての有効なRPPキーワードの検索を実行しますか？\n\n詳細:\n- 対象キーワード数: ${keywordCount}件\n- 推定実行時間: 約${estimatedTime}分\n- 一般ユーザーは1日1回のみ実行可能です\n- 実行中はページを閉じないでください`)) {
         return;
     }
     
@@ -307,6 +314,15 @@ function executeBulkRPPSearch() {
     // プログレス表示用のモーダルを作成
     showBulkSearchProgress();
     
+    // タイムアウト時間を動的に計算（キーワード数 × 13秒 + 60秒のマージン、ミリ秒単位）
+    const timeoutMs = (keywordCount * 13 + 60) * 1000;
+    
+    // AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeoutMs);
+    
     // AJAX リクエスト
     fetch('/seo/rpp/bulk-search/', {
         method: 'POST',
@@ -315,7 +331,8 @@ function executeBulkRPPSearch() {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
                           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
         },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
+        signal: controller.signal
     })
     .then(response => {
         console.log('Response status:', response.status);
@@ -328,6 +345,7 @@ function executeBulkRPPSearch() {
         return response.json();
     })
     .then(data => {
+        clearTimeout(timeoutId); // タイムアウトをクリア
         hideBulkSearchProgress();
         console.log('Response data:', data);
         
@@ -341,10 +359,18 @@ function executeBulkRPPSearch() {
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId); // タイムアウトをクリア
         hideBulkSearchProgress();
         console.error('詳細エラー:', error);
         console.error('エラーメッセージ:', error.message);
-        alert(`通信エラーが発生しました: ${error.message}`);
+        
+        // タイムアウトエラーの場合
+        if (error.name === 'AbortError') {
+            alert(`処理がタイムアウトしました。\n\n推定時間を超過したため処理を中断しました。\nキーワード数: ${keywordCount}件\n制限時間: ${Math.ceil(timeoutMs/1000/60)}分\n\n少数のキーワードに分けて実行することをお勧めします。`);
+        } else {
+            alert(`通信エラーが発生しました: ${error.message}`);
+        }
+        
         button.disabled = false;
         button.innerHTML = originalContent;
     });

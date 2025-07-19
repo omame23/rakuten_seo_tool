@@ -12,6 +12,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
 from datetime import datetime, timedelta
+import math
 from .models_rpp import RPPKeyword, RPPResult, RPPAd, RPPSearchLog, RPPBulkSearchLog
 from .forms_rpp import RPPKeywordForm, BulkRPPKeywordForm
 from .rpp_scraper import scrape_rpp_ranking
@@ -767,7 +768,8 @@ def rpp_bulk_search(request):
         )
         
         store_name = target_user.company_name if user.is_master else target_user.email
-        logger.info(f"RPP一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件")
+        estimated_time = math.ceil((keywords.count() * 13 + 30) / 60)  # 推定時間（分）
+        logger.info(f"RPP一括検索開始: user {target_user.id} ({store_name}) - {keywords.count()}件 - 推定時間: {estimated_time}分")
         
         # 同期処理として実行（バックグラウンドタスクの代わり）
         start_time = time.time()
