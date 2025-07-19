@@ -351,77 +351,31 @@ def rpp_keyword_search(request, keyword_id):
         execution_time = time.time() - start_time
         logger.info(f"RPP個別検索完了: execution_time={execution_time:.2f}s, success={result.get('success')}, total_ads={result.get('total_ads')}, is_found={result.get('is_found')}, rank={result.get('rank')}")
         
-        # 結果を保存
-        rpp_result = RPPResult.objects.create(
-            keyword=keyword,
-            rank=result.get('rank'),
-            total_ads=result.get('total_ads', 0),
-            pages_checked=3,  # 実際の検索ページ数に合わせて修正
-            is_found=result.get('is_found', False),
-            error_message=result.get('error')
-        )
+        # 【高速化】検索結果を即座に返し、DB保存は非同期で実行
+        from .tasks import save_rpp_search_data_async
         
-        # 広告情報を保存（bulk_create使用で高速化）
-        ads = result.get('ads', [])
-        logger.info(f"RPP広告データ保存: {len(ads)}件")
-        
-        # RPPAdオブジェクトをリストで準備
-        rpp_ads_to_create = []
-        for i, ad in enumerate(ads[:20], 1):  # 上位20広告まで保存
-            try:
-                # 自社商品かどうかを判定
-                is_own = False
-                if keyword.rakuten_shop_id.lower() in ad.get('shop_name', '').lower():
-                    is_own = True
-                elif keyword.target_product_url and ad.get('product_url'):
-                    if keyword.target_product_url in ad['product_url']:
-                        is_own = True
-                
-                rpp_ad = RPPAd(
-                    rpp_result=rpp_result,
-                    rank=ad.get('rank', i),
-                    product_name=ad.get('product_name', ''),
-                    catchcopy=ad.get('catchcopy', ''),
-                    product_url=ad.get('product_url', ''),
-                    product_id=ad.get('product_id', ''),
-                    shop_name=ad.get('shop_name', ''),
-                    price=ad.get('price'),
-                    image_url=ad.get('image_url', ''),
-                    position_on_page=ad.get('position_on_page', 1),
-                    page_number=ad.get('page_number', 1),
-                    is_own_product=is_own
-                )
-                rpp_ads_to_create.append(rpp_ad)
-            except Exception as ad_error:
-                logger.error(f"広告データ準備エラー: {ad_error}, ad_data: {ad}")
-        
-        # 一括作成で高速化
-        if rpp_ads_to_create:
-            try:
-                RPPAd.objects.bulk_create(rpp_ads_to_create)
-                logger.info(f"RPP広告データ一括保存完了: {len(rpp_ads_to_create)}件")
-            except Exception as bulk_error:
-                logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
-                # フォールバック：個別作成
-                for rpp_ad in rpp_ads_to_create:
-                    try:
-                        rpp_ad.save()
-                    except Exception as individual_error:
-                        logger.error(f"RPP広告データ個別保存エラー: {individual_error}")
-        
-        # 検索ログを保存
+        # 非同期でデータベース保存タスクを実行
         try:
-            RPPSearchLog.objects.create(
-                user=request.user,
-                keyword=keyword.keyword,
-                execution_time=execution_time,
-                pages_checked=3,  # 実際の検索ページ数に合わせる
-                ads_found=len(ads),
-                success=result.get('success', False),
-                error_details=result.get('error')
-            )
-        except Exception as log_error:
-            logger.error(f"検索ログ保存エラー: {log_error}")
+            save_rpp_search_data_async.delay(keyword.id, result, execution_time)
+            logger.info(f"RPP非同期データ保存タスクを開始: keyword_id={keyword.id}")
+        except Exception as async_error:
+            logger.error(f"非同期タスク開始エラー: {async_error}")
+            # フォールバック：同期処理（安全性確保）
+            logger.warning("非同期処理に失敗、同期処理にフォールバック")
+            
+            # 元の同期処理を実行
+            try:
+                rpp_result = RPPResult.objects.create(
+                    keyword=keyword,
+                    rank=result.get('rank'),
+                    total_ads=result.get('total_ads', 0),
+                    pages_checked=3,
+                    is_found=result.get('is_found', False),
+                    error_message=result.get('error')
+                )
+                logger.info(f"フォールバック同期処理でRPPResult保存完了: {rpp_result.id}")
+            except Exception as sync_error:
+                logger.error(f"フォールバック同期処理もエラー: {sync_error}")
         
         if result.get('success') and result.get('is_found'):
             try:

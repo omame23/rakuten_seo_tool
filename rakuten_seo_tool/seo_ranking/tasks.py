@@ -342,3 +342,106 @@ def weekly_data_summary():
         'summary_date': timezone.now().isoformat(),
         'users_summary': users_summary
     }
+
+
+@shared_task
+def save_rpp_search_data_async(keyword_id, search_result, execution_time):
+    """
+    RPP個別検索のデータベース保存を非同期で実行
+    ユーザーには即座に検索結果を返し、DB保存は背景で実行
+    """
+    try:
+        from .models import RPPKeyword, RPPResult, RPPAd, RPPSearchLog
+        
+        # キーワード取得
+        try:
+            keyword = RPPKeyword.objects.get(id=keyword_id)
+        except RPPKeyword.DoesNotExist:
+            logger.error(f"RPPキーワードが見つかりません: ID {keyword_id}")
+            return {'success': False, 'error': 'Keyword not found'}
+        
+        logger.info(f"RPP非同期データ保存開始: keyword={keyword.keyword}, execution_time={execution_time:.2f}s")
+        
+        # 結果を保存
+        rpp_result = RPPResult.objects.create(
+            keyword=keyword,
+            rank=search_result.get('rank'),
+            total_ads=search_result.get('total_ads', 0),
+            pages_checked=3,
+            is_found=search_result.get('is_found', False),
+            error_message=search_result.get('error')
+        )
+        
+        # 広告情報を保存（bulk_create使用で高速化）
+        ads = search_result.get('ads', [])
+        logger.info(f"RPP広告データ非同期保存: {len(ads)}件")
+        
+        # RPPAdオブジェクトをリストで準備
+        rpp_ads_to_create = []
+        for i, ad in enumerate(ads[:20], 1):  # 上位20広告まで保存
+            try:
+                # 自社商品かどうかを判定
+                is_own = False
+                if keyword.rakuten_shop_id.lower() in ad.get('shop_name', '').lower():
+                    is_own = True
+                elif keyword.target_product_url and ad.get('product_url'):
+                    if keyword.target_product_url in ad['product_url']:
+                        is_own = True
+                
+                rpp_ad = RPPAd(
+                    rpp_result=rpp_result,
+                    rank=ad.get('rank', i),
+                    product_name=ad.get('product_name', ''),
+                    catchcopy=ad.get('catchcopy', ''),
+                    product_url=ad.get('product_url', ''),
+                    product_id=ad.get('product_id', ''),
+                    shop_name=ad.get('shop_name', ''),
+                    price=ad.get('price'),
+                    image_url=ad.get('image_url', ''),
+                    position_on_page=ad.get('position_on_page', 1),
+                    page_number=ad.get('page_number', 1),
+                    is_own_product=is_own
+                )
+                rpp_ads_to_create.append(rpp_ad)
+            except Exception as ad_error:
+                logger.error(f"広告データ準備エラー: {ad_error}, ad_data: {ad}")
+        
+        # 一括作成で高速化
+        if rpp_ads_to_create:
+            try:
+                RPPAd.objects.bulk_create(rpp_ads_to_create)
+                logger.info(f"RPP広告データ非同期保存完了: {len(rpp_ads_to_create)}件")
+            except Exception as bulk_error:
+                logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
+                # フォールバック：個別作成
+                for rpp_ad in rpp_ads_to_create:
+                    try:
+                        rpp_ad.save()
+                    except Exception as individual_error:
+                        logger.error(f"RPP広告データ個別保存エラー: {individual_error}")
+        
+        # 検索ログを保存
+        try:
+            RPPSearchLog.objects.create(
+                user=keyword.user,
+                keyword=keyword.keyword,
+                execution_time=execution_time,
+                pages_checked=3,
+                ads_found=len(ads),
+                success=search_result.get('success', False),
+                error_details=search_result.get('error')
+            )
+        except Exception as log_error:
+            logger.error(f"検索ログ保存エラー: {log_error}")
+        
+        logger.info(f"RPP非同期データ保存完了: keyword={keyword.keyword}, rpp_result_id={rpp_result.id}")
+        
+        return {
+            'success': True,
+            'rpp_result_id': rpp_result.id,
+            'ads_saved': len(rpp_ads_to_create)
+        }
+        
+    except Exception as e:
+        logger.error(f"RPP非同期データ保存エラー: {str(e)}")
+        return {'success': False, 'error': str(e)}
