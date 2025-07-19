@@ -134,6 +134,72 @@
                             {% endif %}
                         </div>
                         
+                        <h5 class="mb-3 mt-4">プラン選択</h5>
+                        
+                        <div class="mb-4">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-danger h-100">
+                                        <div class="card-header bg-danger text-white text-center py-3">
+                                            <h6 class="mb-0">スタンダードプラン</h6>
+                                            <small>最もお得</small>
+                                        </div>
+                                        <div class="card-body text-center p-3">
+                                            <div class="price mb-3">
+                                                <span class="h4 fw-bold">¥2,980</span>
+                                                <span class="text-muted">/月</span>
+                                            </div>
+                                            <ul class="list-unstyled small mb-3">
+                                                <li><i class="fas fa-check text-success"></i> SEOキーワード30個</li>
+                                                <li><i class="fas fa-check text-success"></i> RPPキーワード30個</li>
+                                                <li><i class="fas fa-check text-success"></i> 全機能利用可能</li>
+                                            </ul>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="subscription_plan" 
+                                                       id="standard_plan" value="standard" checked>
+                                                <label class="form-check-label fw-bold" for="standard_plan">
+                                                    このプランを選択
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-warning h-100">
+                                        <div class="card-header bg-warning text-dark text-center py-3">
+                                            <h6 class="mb-0">マスタープラン</h6>
+                                            <small>本格運用向け</small>
+                                        </div>
+                                        <div class="card-body text-center p-3">
+                                            <div class="price mb-3">
+                                                <span class="h4 fw-bold">¥4,980</span>
+                                                <span class="text-muted">/月</span>
+                                            </div>
+                                            <ul class="list-unstyled small mb-3">
+                                                <li><i class="fas fa-check text-success"></i> SEOキーワード100個</li>
+                                                <li><i class="fas fa-check text-success"></i> RPPキーワード100個</li>
+                                                <li><i class="fas fa-check text-success"></i> 優先サポート</li>
+                                            </ul>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="subscription_plan" 
+                                                       id="master_plan" value="master">
+                                                <label class="form-check-label fw-bold" for="master_plan">
+                                                    このプランを選択
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info text-center mt-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>どちらのプランも初月完全無料</strong><br>
+                                <small>プランは後から変更可能です。まずはお試しでご利用ください。</small>
+                            </div>
+                        </div>
+                        
                         <div class="form-check mb-4">
                             <input type="checkbox" name="terms_agreement" class="form-check-input {% if form.terms_agreement.errors %}is-invalid{% endif %}" 
                                    id="id_terms_agreement" required>
@@ -168,10 +234,10 @@
             <div class="mt-4 p-4 bg-light rounded">
                 <h5><i class="fas fa-gift text-success"></i> 初月無料トライアル特典</h5>
                 <ul class="mb-0">
-                    <li>全機能が利用可能</li>
+                    <li>選択したプランの全機能が利用可能</li>
                     <li>クレジットカード登録必須（初月は課金されません）</li>
-                    <li>いつでもキャンセル可能</li>
-                    <li>月額3,980円（税込）※2ヶ月目以降</li>
+                    <li>いつでもキャンセル・プラン変更可能</li>
+                    <li>スタンダード：月額2,980円、マスター：月額4,980円（税込）※2ヶ月目以降</li>
                 </ul>
             </div>
         </div>

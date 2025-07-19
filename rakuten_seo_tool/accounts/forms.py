@@ -62,6 +62,18 @@ class CustomSignupForm(SignupForm):
         })
     )
     
+    subscription_plan = forms.ChoiceField(
+        choices=[
+            ('standard', 'スタンダードプラン（¥2,980/月）'),
+            ('master', 'マスタープラン（¥4,980/月）'),
+        ],
+        initial='standard',
+        label='サブスクリプションプラン',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input'
+        })
+    )
+    
     terms_agreement = forms.BooleanField(
         label='利用規約とプライバシーポリシーに同意する',
         required=True,
@@ -70,7 +82,7 @@ class CustomSignupForm(SignupForm):
         })
     )
     
-    field_order = ['email', 'password1', 'password2', 'company_name', 'contact_name', 'phone_number', 'rakuten_shop_id', 'terms_agreement']
+    field_order = ['email', 'password1', 'password2', 'company_name', 'contact_name', 'phone_number', 'rakuten_shop_id', 'subscription_plan', 'terms_agreement']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -124,6 +136,9 @@ class CustomSignupForm(SignupForm):
         user.contact_name = self.cleaned_data['contact_name']
         user.phone_number = self.cleaned_data['phone_number']
         user.rakuten_shop_id = self.cleaned_data.get('rakuten_shop_id', '')
+        
+        # 選択されたプランを設定
+        user.subscription_plan = self.cleaned_data.get('subscription_plan', 'standard')
         
         # 無料トライアル期間を設定（30日間）
         user.subscription_status = 'trial'
