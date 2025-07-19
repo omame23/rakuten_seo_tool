@@ -187,9 +187,10 @@ def execute_rpp_bulk_search(user_id, bulk_log_id):
                         error_message=result['error']
                     )
                     
-                    # 広告データを保存
+                    # 広告データを保存（bulk_create使用で高速化）
+                    rpp_ads_to_create = []
                     for ad_data in result['ads']:
-                        RPPAd.objects.create(
+                        rpp_ad = RPPAd(
                             rpp_result=rpp_result,
                             rank=ad_data.get('rank', 0),
                             product_name=ad_data.get('product_name', ''),
@@ -202,6 +203,20 @@ def execute_rpp_bulk_search(user_id, bulk_log_id):
                             page_number=ad_data.get('page_number', 1),
                             position_on_page=ad_data.get('position_on_page', 0)
                         )
+                        rpp_ads_to_create.append(rpp_ad)
+                    
+                    # 一括作成で高速化
+                    if rpp_ads_to_create:
+                        try:
+                            RPPAd.objects.bulk_create(rpp_ads_to_create)
+                        except Exception as bulk_error:
+                            logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
+                            # フォールバック：個別作成
+                            for rpp_ad in rpp_ads_to_create:
+                                try:
+                                    rpp_ad.save()
+                                except Exception:
+                                    pass
                     
                     success_count += 1
                     logger.info(f"RPP検索成功: {keyword.keyword} - 順位: {result['rank']}")

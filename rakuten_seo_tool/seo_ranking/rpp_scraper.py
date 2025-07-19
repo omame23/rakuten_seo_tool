@@ -6,6 +6,7 @@ RPP広告順位スクレイピング機能
 import time
 import logging
 import re
+import json
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import quote, urljoin
 import requests
@@ -165,7 +166,6 @@ class RPPScraper:
                         
                         json_str = script_content[start_index:end_index].strip()
                         
-                        import json
                         initial_state = json.loads(json_str)
                         
                         # itemsを取得（再帰的検索を含む）
@@ -178,25 +178,39 @@ class RPPScraper:
                             if ichiba_search and isinstance(ichiba_search, dict):
                                 items = ichiba_search.get('items', [])
                         
-                        # 通常のパスで見つからない場合は再帰的に探す
+                        # 通常のパスで見つからない場合は効率的な検索を実行
                         if not items:
-                            def find_items_recursive(obj, path=""):
+                            def find_items_optimized(obj, max_depth=5, current_depth=0):
+                                """効率化された商品リスト検索（深度制限付き）"""
+                                if current_depth > max_depth:
+                                    return None
+                                    
                                 if isinstance(obj, dict):
-                                    for key, value in obj.items():
-                                        new_path = f"{path}.{key}" if path else key
-                                        if key == 'items' and isinstance(value, list) and value:
+                                    # よく使われるキー名を優先的にチェック
+                                    priority_keys = ['items', 'products', 'itemList', 'results']
+                                    for key in priority_keys:
+                                        value = obj.get(key)
+                                        if isinstance(value, list) and value:
                                             return value
-                                        result = find_items_recursive(value, new_path)
-                                        if result:
-                                            return result
-                                elif isinstance(obj, list):
-                                    for i, value in enumerate(obj):
-                                        result = find_items_recursive(value, f"{path}[{i}]")
+                                    
+                                    # 'items'キーが最も可能性が高いので、限定的に再帰
+                                    for key, value in obj.items():
+                                        if 'item' in key.lower() or 'product' in key.lower():
+                                            if isinstance(value, list) and value:
+                                                return value
+                                            elif isinstance(value, dict):
+                                                result = find_items_optimized(value, max_depth, current_depth + 1)
+                                                if result:
+                                                    return result
+                                elif isinstance(obj, list) and len(obj) > 0:
+                                    # 最初の要素のみチェック（パフォーマンス重視）
+                                    if len(obj) > 0:
+                                        result = find_items_optimized(obj[0], max_depth, current_depth + 1)
                                         if result:
                                             return result
                                 return None
                             
-                            items = find_items_recursive(initial_state) or []
+                            items = find_items_optimized(initial_state) or []
                         
                         logger.debug(f"検索結果アイテム数: {len(items)}")
                         
@@ -274,7 +288,6 @@ class RPPScraper:
                 script_tags = soup.find_all('script', type='application/ld+json')
                 for script in script_tags:
                     try:
-                        import json
                         data = json.loads(script.string)
                         if data.get('@type') == 'ItemList':
                             items = data.get('itemListElement', [])
