@@ -385,7 +385,7 @@ def ranking_results(request, keyword_id):
     page_obj = paginator.get_page(page_number)
     
     # 一括検索実行可能かチェック
-    can_bulk_search = request.user.can_execute_bulk_search_today()
+    can_bulk_search = request.user.can_execute_auto_search_today()
     
     return render(request, 'seo_ranking/ranking_results.html', {
         'keyword': keyword,
@@ -648,7 +648,7 @@ def dashboard(request):
         success_rate = (recent_logs.filter(success=True).count() / recent_logs.count()) * 100
     
     # 一括検索実行可能かチェック
-    can_bulk_search = request.user.can_execute_bulk_search_today()
+    can_bulk_search = request.user.can_execute_auto_search_today()
     
     return render(request, 'seo_ranking/dashboard.html', {
         'total_keywords': total_keywords,
@@ -684,7 +684,7 @@ def bulk_keyword_search(request):
         return JsonResponse({'success': False, 'error': '無料期間が終了しています。有料プランへのアップグレードが必要です。'})
     
     # 1日1回制限チェック（マスターアカウント以外）
-    if not user.is_master and not target_user.can_execute_bulk_search_today():
+    if not user.is_master and not target_user.can_execute_auto_search_today():
         messages.error(request, '一括検索は1日1回のみ実行可能です。明日再度お試しください。')
         return JsonResponse({'success': False, 'error': '一括検索は1日1回のみ実行可能です。明日再度お試しください。'})
     

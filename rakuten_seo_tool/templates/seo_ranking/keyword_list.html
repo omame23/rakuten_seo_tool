@@ -59,11 +59,11 @@
                         <i class="fas fa-upload"></i> 一括登録
                     </button>
                     {% endif %}
-                    {% if user.can_execute_bulk_search_today and user.is_within_trial_period or user.is_master %}
+                    {% if user.can_execute_auto_search_today and user.is_within_trial_period or user.is_master %}
                     <button type="button" class="btn btn-success" id="bulk-search-btn">
                         <i class="fas fa-play"></i> 一括順位確認
                     </button>
-                    {% elif not user.can_execute_bulk_search_today %}
+                    {% elif not user.can_execute_auto_search_today %}
                     <button type="button" class="btn btn-secondary" disabled>
                         <i class="fas fa-clock"></i> 今日は実行済み
                     </button>
