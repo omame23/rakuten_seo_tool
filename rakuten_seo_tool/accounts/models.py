@@ -84,6 +84,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         ],
         default='inactive',
     )
+    subscription_plan = models.CharField(
+        verbose_name='サブスクリプションプラン',
+        max_length=20,
+        choices=[
+            ('standard', 'スタンダードプラン'),
+            ('master', 'マスタープラン'),
+        ],
+        default='standard',
+        help_text='スタンダード: 2,980円/月 (SEO&RPP各30個), マスター: 4,980円/月 (SEO&RPP各100個)'
+    )
     trial_end_date = models.DateTimeField(
         verbose_name='トライアル終了日',
         blank=True,
@@ -218,3 +228,54 @@ class User(AbstractBaseUser, PermissionsMixin):
         from django.utils import timezone
         self.last_bulk_search_date = timezone.now().date()
         self.save()
+    
+    def get_keyword_limit(self):
+        """プランに応じたキーワード登録上限を取得"""
+        # マスターアカウントは無制限
+        if self.is_master:
+            return None
+            
+        # 招待ユーザーは無制限
+        if self.is_invited_user:
+            return None
+            
+        # プラン別の上限
+        if self.subscription_plan == 'master':
+            return 100  # マスタープラン: 100個
+        else:
+            return 30   # スタンダードプラン: 30個
+    
+    def get_plan_display_name(self):
+        """プランの表示名を取得"""
+        if self.is_master:
+            return 'マスターアカウント'
+        elif self.is_invited_user:
+            return '招待アカウント（無制限）'
+        else:
+            plan_dict = dict(self._meta.get_field('subscription_plan').choices)
+            return plan_dict.get(self.subscription_plan, 'スタンダードプラン')
+    
+    def get_plan_price(self):
+        """プランの月額料金を取得"""
+        if self.is_master or self.is_invited_user:
+            return 0  # 無料
+        elif self.subscription_plan == 'master':
+            return 4980  # マスタープラン
+        else:
+            return 2980  # スタンダードプラン
+    
+    def can_register_keyword(self, keyword_type='seo'):
+        """キーワード登録可能かチェック"""
+        keyword_limit = self.get_keyword_limit()
+        if keyword_limit is None:
+            return True  # 無制限
+        
+        # 現在の登録数を取得
+        if keyword_type == 'seo':
+            from seo_ranking.models import Keyword
+            current_count = Keyword.objects.filter(user=self).count()
+        else:  # rpp
+            from seo_ranking.models import RPPKeyword
+            current_count = RPPKeyword.objects.filter(user=self).count()
+        
+        return current_count < keyword_limit

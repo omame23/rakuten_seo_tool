@@ -95,10 +95,32 @@
                                     <strong>マスターアカウント</strong><br>
                                     全機能・全店舗データにアクセス可能です。
                                 </div>
+                                {% elif user.is_invited_user %}
+                                <div class="alert alert-success">
+                                    <i class="fas fa-gift"></i>
+                                    <strong>招待アカウント</strong><br>
+                                    全期間無料・全機能無制限でご利用いただけます。
+                                </div>
                                 {% else %}
                                 <div class="alert alert-secondary">
                                     <i class="fas fa-info-circle"></i>
-                                    <strong>サブスクリプション状態：</strong> {{ user.get_subscription_status_display }}
+                                    <strong>サブスクリプション状態：</strong> {{ user.get_subscription_status_display }}<br>
+                                    <strong>プラン：</strong> {{ user.get_plan_display_name }} (月額{{ user.get_plan_price }}円)<br>
+                                    <strong>キーワード上限：</strong> {{ user.get_keyword_limit }}個 (SEO・RPP各)
+                                </div>
+                                
+                                <!-- プラン変更セクション -->
+                                <div class="mb-3">
+                                    <label for="subscription_plan" class="form-label">サブスクリプションプラン</label>
+                                    <select name="subscription_plan" id="subscription_plan" class="form-select">
+                                        <option value="standard" {% if user.subscription_plan == 'standard' %}selected{% endif %}>
+                                            スタンダードプラン (月額2,980円) - SEO・RPP各30個まで
+                                        </option>
+                                        <option value="master" {% if user.subscription_plan == 'master' %}selected{% endif %}>
+                                            マスタープラン (月額4,980円) - SEO・RPP各100個まで
+                                        </option>
+                                    </select>
+                                    <small class="form-text text-muted">プラン変更は次回請求から適用されます</small>
                                 </div>
                                 {% endif %}
 

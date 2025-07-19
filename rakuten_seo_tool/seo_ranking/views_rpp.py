@@ -84,7 +84,7 @@ def rpp_keyword_list(request):
         keyword_limit = None  # マスターアカウントは制限なし
     else:
         total_keywords = RPPKeyword.objects.filter(user=request.user).count()
-        keyword_limit = None if request.user.is_invited_user else 10
+        keyword_limit = request.user.get_keyword_limit()
     
     # 一括検索実行制限チェック
     can_execute_bulk_search = RPPBulkSearchLog.can_execute_today(request.user)
@@ -123,29 +123,22 @@ def rpp_keyword_create(request):
             messages.error(request, '店舗が選択されていません。店舗を選択してからキーワードを登録してください。')
             return redirect('seo_ranking:rpp_keyword_list')
     
-    # キーワード登録数チェック（招待ユーザー以外）
-    if not request.user.is_master and not request.user.is_invited_user:
-        current_count = RPPKeyword.objects.filter(user=target_user).count()
-        if current_count >= 10:
-            messages.error(request, 'RPPキーワード登録数の上限（10個）に達しています。既存のキーワードを削除してから登録してください。')
-            return redirect('seo_ranking:rpp_keyword_list')
-    elif request.user.is_master and selected_store and not selected_store.is_invited_user:
-        # マスターアカウントが選択店舗にキーワードを登録する場合も制限チェック（招待ユーザー除く）
-        current_count = RPPKeyword.objects.filter(user=selected_store).count()
-        if current_count >= 10:
-            messages.error(request, f'店舗「{selected_store.company_name}」のRPPキーワード登録数の上限（10個）に達しています。')
-            return redirect('seo_ranking:rpp_keyword_list')
+    # キーワード登録数チェック
+    if not target_user.can_register_keyword('rpp'):
+        keyword_limit = target_user.get_keyword_limit()
+        store_name = selected_store.company_name if selected_store else "あなた"
+        messages.error(request, f'{store_name}のRPPキーワード登録数の上限（{keyword_limit}個）に達しています。既存のキーワードを削除してから登録してください。')
+        return redirect('seo_ranking:rpp_keyword_list')
     
     if request.method == 'POST':
         form = RPPKeywordForm(request.POST, user=request.user, selected_store=selected_store)
         if form.is_valid():
-            # 再度チェック（並行アクセス対策）- 招待ユーザーは除外
-            if not target_user.is_invited_user:
-                current_count = RPPKeyword.objects.filter(user=target_user).count()
-                if current_count >= 10:
-                    store_name = selected_store.company_name if selected_store else "あなた"
-                    messages.error(request, f'{store_name}のRPPキーワード登録数の上限（10個）に達しています。')
-                    return redirect('seo_ranking:rpp_keyword_list')
+            # 再度チェック（並行アクセス対策）
+            if not target_user.can_register_keyword('rpp'):
+                keyword_limit = target_user.get_keyword_limit()
+                store_name = selected_store.company_name if selected_store else "あなた"
+                messages.error(request, f'{store_name}のRPPキーワード登録数の上限（{keyword_limit}個）に達しています。')
+                return redirect('seo_ranking:rpp_keyword_list')
             
             keyword = form.save(commit=False)
             keyword.user = target_user

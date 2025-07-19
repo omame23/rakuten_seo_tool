@@ -103,6 +103,13 @@ def account_settings(request):
             if new_shop_id:
                 user.rakuten_shop_id = new_shop_id
             
+            # プラン変更処理（通常ユーザーのみ）
+            if not user.is_master and not user.is_invited_user:
+                new_plan = request.POST.get('subscription_plan', user.subscription_plan)
+                if new_plan in ['standard', 'master'] and new_plan != user.subscription_plan:
+                    user.subscription_plan = new_plan
+                    messages.success(request, f'サブスクリプションプランを{user.get_plan_display_name()}に変更しました。次回請求から適用されます。')
+            
             user.save()
             messages.success(request, 'アカウント情報を更新しました。')
             
