@@ -60,14 +60,19 @@ def stripe_webhook(request):
 def handle_checkout_completed(session):
     """チェックアウト完了時の処理"""
     try:
+        logger.info(f"Checkout completed session: {session}")
+        
         # metadataからuser_idを取得
         user_id = session.get('metadata', {}).get('user_id')
         if not user_id:
             logger.error("No user_id in checkout session metadata")
             return
             
+        logger.info(f"Processing checkout for user_id: {user_id}")
+        
         # ユーザーを取得
         user = User.objects.get(id=user_id)
+        logger.info(f"Found user: {user.email}")
         
         # Stripeカスタマーを関連付け
         customer_id = session.get('customer')
@@ -105,10 +110,13 @@ def handle_checkout_completed(session):
                 request.META['SERVER_PORT'] = '8000'
                 request.is_secure = lambda: False
                 
+                logger.info(f"Attempting to send email confirmation to {user.email}")
                 send_email_confirmation(request, user, signup=True)
-                logger.info(f"Email confirmation sent to user {user.id}")
+                logger.info(f"Email confirmation sent successfully to user {user.id} ({user.email})")
             except Exception as e:
-                logger.error(f"Failed to send email confirmation to user {user.id}: {e}")
+                logger.error(f"Failed to send email confirmation to user {user.id} ({user.email}): {e}")
+        else:
+            logger.info(f"Email {user.email} is already verified, skipping email send")
         
         logger.info(f"Checkout completed for user {user.id}, customer {customer_id}")
         
