@@ -8,7 +8,9 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1><i class="fas fa-credit-card"></i> 請求情報</h1>
-                {% if subscription_info.is_trial %}
+                {% if user.is_master %}
+                    <span class="badge bg-warning fs-6">マスターアカウント</span>
+                {% elif subscription_info.is_trial %}
                     <span class="badge bg-info fs-6">無料期間中</span>
                 {% elif subscription_info.is_active %}
                     {% if subscription_info.plan == 'standard' %}
@@ -17,7 +19,7 @@
                         <span class="badge bg-warning fs-6">マスター会員</span>
                     {% endif %}
                 {% else %}
-                    <span class="badge bg-danger fs-6">サブスクリプション無効</span>
+                    <span class="badge bg-info fs-6">無料期間中</span>
                 {% endif %}
             </div>
         </div>
@@ -59,7 +61,9 @@
                         </div>
                         <div class="col-md-6">
                             <h6>ステータス</h6>
-                            {% if subscription_info.is_trial %}
+                            {% if user.is_master %}
+                                <span class="badge bg-warning">マスターアカウント</span>
+                            {% elif subscription_info.is_trial %}
                                 <span class="badge bg-info">無料期間中</span>
                             {% elif subscription_info.is_active %}
                                 {% if subscription_info.plan == 'standard' %}
@@ -72,7 +76,7 @@
                             {% elif user.subscription_status == 'canceled' %}
                                 <span class="badge bg-secondary">キャンセル</span>
                             {% else %}
-                                <span class="badge bg-danger">無効</span>
+                                <span class="badge bg-info">無料期間中</span>
                             {% endif %}
                         </div>
                     </div>
@@ -80,7 +84,7 @@
             </div>
 
             <!-- プラン変更セクション -->
-            {% if user.subscription_status == 'trial' or user.subscription_status == 'active' %}
+            {% if not user.is_master %}
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> プラン変更</h5>
@@ -161,15 +165,13 @@
                     <h5 class="mb-0"><i class="fas fa-cogs"></i> アクション</h5>
                 </div>
                 <div class="card-body">
-                    {% if subscription_info.is_trial or subscription_info.is_active %}
+                    {% if not user.is_master %}
                         <button class="btn btn-danger w-100 mb-3" onclick="cancelSubscription()">
                             <i class="fas fa-times"></i> サービスを解約する
                         </button>
-                        {% if subscription_info.is_active %}
                         <button class="btn btn-outline-primary w-100 mb-3" onclick="updatePaymentMethod()">
                             <i class="fas fa-edit"></i> 支払い方法を変更
                         </button>
-                        {% endif %}
                     {% endif %}
                     
                     <a href="{% url 'accounts:settings' %}" class="btn btn-outline-secondary w-100">
