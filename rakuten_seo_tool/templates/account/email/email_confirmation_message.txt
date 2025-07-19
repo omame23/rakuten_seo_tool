@@ -1,6 +1,5 @@
-{% load account %}{% user_display user as user_display %}{{ user_display }}さま
-
-楽天SEO対策ツールにご登録いただき、ありがとうございます。
+楽天検索順位確認ツール
+にご登録いただき、ありがとうございます。
 
 ご登録いただいたメールアドレスの認証を完了するため、
 以下のリンクをクリックしてください：
@@ -17,7 +16,5 @@
 
 ご不明な点がございましたら、お気軽にお問い合わせください。
 
---
-楽天SEO対策ツール
-https://inspice.work
-support@inspice.work
+【楽天検索順位確認ツール】
+info@inspice.work
