@@ -186,39 +186,71 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="form_type" value="auto_search_settings">
                                 
-                                <div class="mb-3">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="auto_search_enabled" 
-                                               id="auto_search_enabled" {% if user.auto_search_enabled %}checked{% endif %}>
-                                        <label class="form-check-label" for="auto_search_enabled">
-                                            自動検索を有効にする
-                                        </label>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="fas fa-search"></i> SEO検索順位自動チェック
+                                                </h6>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="auto_seo_search_enabled" 
+                                                           id="auto_seo_search_enabled" {% if user.auto_seo_search_enabled %}checked{% endif %}>
+                                                    <label class="form-check-label" for="auto_seo_search_enabled">
+                                                        <strong>{% if user.auto_seo_search_enabled %}ON{% else %}OFF{% endif %}</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">毎日深夜にSEOキーワード順位を自動確認</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <small class="form-text text-muted">有効にすると、毎日指定した時間に自動でキーワード順位を確認します</small>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="fas fa-bullhorn"></i> RPP検索順位自動チェック
+                                                </h6>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="auto_rpp_search_enabled" 
+                                                           id="auto_rpp_search_enabled" {% if user.auto_rpp_search_enabled %}checked{% endif %}>
+                                                    <label class="form-check-label" for="auto_rpp_search_enabled">
+                                                        <strong>{% if user.auto_rpp_search_enabled %}ON{% else %}OFF{% endif %}</strong>
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">毎日深夜にRPPキーワード順位を自動確認</small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
+                                {% if user.is_master %}
                                 <div class="mb-3">
-                                    <label for="auto_search_time" class="form-label">自動検索実行時間</label>
+                                    <label for="auto_search_time" class="form-label">
+                                        <i class="fas fa-crown"></i> マスターアカウント専用 - 自動検索実行時間
+                                    </label>
                                     <input type="time" name="auto_search_time" id="auto_search_time" class="form-control" 
-                                           value="{{ user.auto_search_time|time:'H:i' }}">
-                                    <small class="form-text text-muted">毎日この時間に自動検索を実行します（24時間形式）</small>
+                                           value="{% if user.auto_search_time %}{{ user.auto_search_time|time:'H:i' }}{% endif %}">
+                                    <small class="form-text text-muted">マスターアカウントは任意の時間に自動検索を実行できます（未設定の場合は深夜実行）</small>
                                 </div>
+                                {% endif %}
 
                                 <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i>
-                                    <strong>自動検索について</strong>
+                                    <i class="fas fa-moon"></i>
+                                    <strong>深夜自動実行について</strong>
                                     <ul class="mb-0 mt-2">
-                                        <li>アクティブなキーワードのみが検索対象になります</li>
-                                        <li>楽天APIの負荷軽減のため、キーワード間に1秒の間隔を設けます</li>
-                                        <li>検索結果は通常の検索履歴に記録されます</li>
-                                        <li>エラーが発生した場合、翌日に再試行されます</li>
+                                        <li><strong>実行時間：</strong> 午前0時 - 午前7時の間に順次実行</li>
+                                        <li><strong>実行順序：</strong> サーバー負荷軽減のため店舗毎にランダム順序で実行</li>
+                                        <li><strong>実行間隔：</strong> 各店舗間に10秒、キーワード間に1-2秒の間隔</li>
+                                        <li><strong>対象：</strong> アクティブなキーワードのみが検索対象</li>
+                                        <li><strong>結果：</strong> 通常の検索履歴に記録されます</li>
                                     </ul>
                                 </div>
 
                                 {% if user.last_bulk_search_date %}
                                 <div class="alert alert-secondary">
                                     <i class="fas fa-calendar"></i>
-                                    <strong>最終一括検索日：</strong> {{ user.last_bulk_search_date|date:'Y年m月d日' }}
+                                    <strong>最終自動検索日：</strong> {{ user.last_bulk_search_date|date:'Y年m月d日' }}
                                 </div>
                                 {% endif %}
 

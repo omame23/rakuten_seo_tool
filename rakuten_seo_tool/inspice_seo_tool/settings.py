@@ -224,8 +224,8 @@ CSRF_COOKIE_SECURE = False  # 開発環境ではFalse、本番環境ではTrue
 CSRF_COOKIE_HTTPONLY = False
 
 # Celery settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = 'redis://localhost:6380/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6380/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -233,16 +233,16 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # Celery Beat settings (定期実行スケジュール)
 CELERY_BEAT_SCHEDULE = {
-    'auto-keyword-search': {
+    'auto-keyword-search-master': {
         'task': 'seo_ranking.tasks.auto_keyword_search',
-        'schedule': 60.0,  # 1分間隔で実行（実際の時間チェックはタスク内で行う）
+        'schedule': 60.0,  # 1分間隔で実行（マスターアカウントの時間指定検索用）
     },
-    'cleanup-old-search-logs': {
-        'task': 'seo_ranking.tasks.cleanup_old_search_logs',
-        'schedule': 86400.0,  # 24時間間隔で実行
+    'nighttime-auto-search': {
+        'task': 'seo_ranking.tasks.nighttime_auto_search',
+        'schedule': 300.0,  # 5分間隔で実行（深夜0-7時のみ有効）
     },
-    'cleanup-old-ranking-results': {
-        'task': 'seo_ranking.tasks.cleanup_old_ranking_results',
+    'cleanup-old-data': {
+        'task': 'seo_ranking.tasks.cleanup_old_data_task',
         'schedule': 86400.0,  # 24時間間隔で実行
     },
 }

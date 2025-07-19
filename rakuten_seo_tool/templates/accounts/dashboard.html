@@ -167,11 +167,11 @@
                                             <i class="fas fa-store"></i> 店舗を選択
                                         </button>
                                     {% endif %}
-                                {% elif user.can_execute_bulk_search_today and user.is_within_trial_period %}
+                                {% elif user.can_execute_auto_search_today and user.is_within_trial_period %}
                                     <button type="button" class="btn btn-success" id="bulk-search-btn">
                                         <i class="fas fa-play"></i> 一括順位確認
                                     </button>
-                                {% elif not user.can_execute_bulk_search_today %}
+                                {% elif not user.can_execute_auto_search_today %}
                                     <button type="button" class="btn btn-secondary" disabled>
                                         <i class="fas fa-clock"></i> 今日は実行済み
                                     </button>
@@ -221,11 +221,11 @@
                                             <i class="fas fa-store"></i> 店舗を選択
                                         </button>
                                     {% endif %}
-                                {% elif user.can_execute_bulk_search_today and user.is_within_trial_period %}
+                                {% elif user.can_execute_auto_search_today and user.is_within_trial_period %}
                                     <button type="button" class="btn btn-success" id="bulk-rpp-search-btn">
                                         <i class="fas fa-play"></i> 一括順位確認
                                     </button>
-                                {% elif not user.can_execute_bulk_search_today %}
+                                {% elif not user.can_execute_auto_search_today %}
                                     <button type="button" class="btn btn-secondary" disabled>
                                         <i class="fas fa-clock"></i> 今日は実行済み
                                     </button>
@@ -240,6 +240,96 @@
                                 </a>
                                 {% endif %}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 自動検索設定セクション -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-clock"></i> 自動検索設定</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-moon"></i>
+                                <strong>深夜自動実行：</strong> 毎日午前0時-7時の間に自動でキーワード順位を確認します
+                            </div>
+                            
+                            <form method="post" action="{% url 'accounts:settings' %}" class="quick-auto-search-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_type" value="auto_search_settings">
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-1">
+                                                            <i class="fas fa-search text-primary"></i> SEO検索順位自動チェック
+                                                        </h6>
+                                                        <small class="text-muted">毎日深夜にSEOキーワード順位を自動確認</small>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" name="auto_seo_search_enabled" 
+                                                               id="quick_auto_seo_search_enabled" {% if user.auto_seo_search_enabled %}checked{% endif %}
+                                                               onchange="this.form.submit()">
+                                                        <label class="form-check-label" for="quick_auto_seo_search_enabled">
+                                                            <span class="badge {% if user.auto_seo_search_enabled %}bg-success{% else %}bg-secondary{% endif %}">
+                                                                {% if user.auto_seo_search_enabled %}ON{% else %}OFF{% endif %}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-1">
+                                                            <i class="fas fa-bullhorn text-warning"></i> RPP検索順位自動チェック
+                                                        </h6>
+                                                        <small class="text-muted">毎日深夜にRPPキーワード順位を自動確認</small>
+                                                    </div>
+                                                    <div class="form-check form-switch">
+                                                        <input class="form-check-input" type="checkbox" name="auto_rpp_search_enabled" 
+                                                               id="quick_auto_rpp_search_enabled" {% if user.auto_rpp_search_enabled %}checked{% endif %}
+                                                               onchange="this.form.submit()">
+                                                        <label class="form-check-label" for="quick_auto_rpp_search_enabled">
+                                                            <span class="badge {% if user.auto_rpp_search_enabled %}bg-success{% else %}bg-secondary{% endif %}">
+                                                                {% if user.auto_rpp_search_enabled %}ON{% else %}OFF{% endif %}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if user.is_master %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-crown"></i>
+                                    <strong>マスターアカウント：</strong> 
+                                    詳細な時間設定は <a href="{% url 'accounts:settings' %}#auto-search-settings" class="alert-link">設定画面</a> で行えます
+                                </div>
+                                {% endif %}
+                                
+                                {% if user.last_bulk_search_date %}
+                                <div class="text-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar"></i> 最終自動検索日：{{ user.last_bulk_search_date|date:'Y年m月d日' }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </form>
                         </div>
                     </div>
                 </div>

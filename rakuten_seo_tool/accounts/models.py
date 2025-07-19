@@ -110,15 +110,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     
     # 自動検索設定
-    auto_search_enabled = models.BooleanField(
-        verbose_name='自動検索有効',
+    auto_seo_search_enabled = models.BooleanField(
+        verbose_name='SEO自動検索有効',
         default=True,
-        help_text='毎日自動でキーワード順位を確認する'
+        help_text='毎日深夜に自動でSEOキーワード順位を確認する'
+    )
+    auto_rpp_search_enabled = models.BooleanField(
+        verbose_name='RPP自動検索有効',
+        default=True,
+        help_text='毎日深夜に自動でRPPキーワード順位を確認する'
     )
     auto_search_time = models.TimeField(
         verbose_name='自動検索時間',
         default='10:00',
-        help_text='毎日自動検索を実行する時間（24時間形式）'
+        help_text='毎日自動検索を実行する時間（24時間形式・マスターアカウントのみ有効）',
+        blank=True,
+        null=True
     )
     last_bulk_search_date = models.DateField(
         verbose_name='最終一括検索日',
@@ -186,13 +193,27 @@ class User(AbstractBaseUser, PermissionsMixin):
         else:
             return 365  # 有料プランは1年保持
     
-    def can_execute_bulk_search_today(self):
-        """今日一括検索を実行可能かチェック"""
+    def can_execute_auto_search_today(self):
+        """今日自動検索を実行可能かチェック"""
         from django.utils import timezone
         today = timezone.now().date()
         return self.last_bulk_search_date != today
     
-    def update_last_bulk_search_date(self):
+    def should_execute_auto_search_now(self):
+        """現在時刻で自動検索を実行すべきかチェック（マスターアカウントのみ時間指定）"""
+        if self.is_master and self.auto_search_time:
+            from django.utils import timezone
+            current_time = timezone.localtime(timezone.now()).time()
+            # ±5分の範囲で実行
+            user_time = self.auto_search_time
+            time_diff = abs(
+                (current_time.hour * 60 + current_time.minute) - 
+                (user_time.hour * 60 + user_time.minute)
+            )
+            return time_diff <= 5
+        return False
+    
+    def update_last_auto_search_date(self):
         """最終一括検索日を今日に更新"""
         from django.utils import timezone
         self.last_bulk_search_date = timezone.now().date()

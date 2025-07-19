@@ -138,23 +138,30 @@ def account_settings(request):
             
         elif form_type == 'auto_search_settings':
             # 自動検索設定
-            auto_search_enabled = request.POST.get('auto_search_enabled') == 'on'
+            auto_seo_search_enabled = request.POST.get('auto_seo_search_enabled') == 'on'
+            auto_rpp_search_enabled = request.POST.get('auto_rpp_search_enabled') == 'on'
             auto_search_time = request.POST.get('auto_search_time')
             
-            if auto_search_time:
+            # SEO・RPP自動検索設定を更新
+            user.auto_seo_search_enabled = auto_seo_search_enabled
+            user.auto_rpp_search_enabled = auto_rpp_search_enabled
+            
+            # マスターアカウントの場合のみ時間設定を処理
+            if user.is_master and auto_search_time:
                 from datetime import datetime
                 try:
                     # 時間形式の検証
                     time_obj = datetime.strptime(auto_search_time, '%H:%M').time()
-                    user.auto_search_enabled = auto_search_enabled
                     user.auto_search_time = time_obj
-                    user.save()
-                    
-                    messages.success(request, '自動検索設定を更新しました。')
                 except ValueError:
                     messages.error(request, '時間の形式が正しくありません。')
-            else:
-                messages.error(request, '時間を入力してください。')
+                    return redirect('accounts:settings')
+            elif user.is_master and not auto_search_time:
+                # マスターアカウントで時間が空の場合はNullに設定
+                user.auto_search_time = None
+            
+            user.save()
+            messages.success(request, '自動検索設定を更新しました。')
         
         return redirect('accounts:settings')
     

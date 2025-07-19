@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 @shared_task
 def auto_keyword_search():
     """
-    自動キーワード検索タスク
-    毎日指定時間に実行される
+    自動キーワード検索タスク（従来のマスターアカウント用）
+    毎分実行され、マスターアカウントの時間指定検索をチェック
     """
-    logger.info("Starting auto keyword search task")
+    logger.info("Starting auto keyword search task (for master accounts)")
     
     # タイムゾーンを考慮して現在時刻を取得
     from django.utils import timezone as tz
@@ -28,37 +28,114 @@ def auto_keyword_search():
     
     logger.info(f"Current local time: {current_time}, Current date: {current_date}")
     
-    # 自動検索が有効で、設定時間に近いユーザーを取得（±5分の範囲）
+    # マスターアカウントで時間指定の自動検索をチェック
     users_to_search = []
     
-    for user in User.objects.filter(auto_search_enabled=True, is_active=True):
+    for user in User.objects.filter(is_master=True, is_active=True):
         # 既に今日実行済みかチェック
         if user.last_bulk_search_date == current_date:
-            logger.info(f"User {user.email} already searched today")
+            logger.info(f"Master user {user.email} already searched today")
             continue
             
-        # 時間チェック（±5分の範囲）
-        user_time = user.auto_search_time
-        time_diff = abs(
-            (current_time.hour * 60 + current_time.minute) - 
-            (user_time.hour * 60 + user_time.minute)
-        )
-        
-        logger.info(f"User {user.email}: auto_search_time={user_time}, time_diff={time_diff}")
-        
-        if time_diff <= 5:  # 5分以内
+        # マスターアカウントの時間指定チェック
+        if user.should_execute_auto_search_now():
             users_to_search.append(user)
     
-    logger.info(f"Found {len(users_to_search)} users for auto search")
+    logger.info(f"Found {len(users_to_search)} master users for auto search")
     
-    # 各ユーザーの自動検索を実行
+    # 各マスターユーザーの自動検索を実行
     for user in users_to_search:
         try:
             execute_user_auto_search(user.id)
         except Exception as e:
-            logger.error(f"Failed auto search for user {user.id}: {e}")
+            logger.error(f"Failed auto search for master user {user.id}: {e}")
     
     logger.info("Auto keyword search task completed")
+
+
+@shared_task
+def nighttime_auto_search():
+    """
+    深夜自動検索タスク（一般ユーザー向け）
+    深夜0時-7時の間に全ユーザーの自動検索を順次実行
+    """
+    logger.info("Starting nighttime auto search task")
+    
+    from django.utils import timezone as tz
+    current_datetime = tz.localtime(tz.now())
+    current_time = current_datetime.time()
+    current_date = current_datetime.date()
+    
+    logger.info(f"Current local time: {current_time}, Current date: {current_date}")
+    
+    # 深夜0時-7時の間のみ実行
+    if not (0 <= current_time.hour < 7):
+        logger.info(f"Not nighttime hours (current: {current_time.hour:02d}:XX), skipping auto search")
+        return
+    
+    # 自動検索が有効なユーザーを取得（マスターアカウント除く）
+    eligible_users = []
+    
+    for user in User.objects.filter(is_active=True, is_master=False):
+        # 既に今日実行済みかチェック
+        if user.last_bulk_search_date == current_date:
+            continue
+            
+        # SEOかRPPのどちらかが有効な場合のみ実行
+        if user.auto_seo_search_enabled or user.auto_rpp_search_enabled:
+            eligible_users.append(user)
+    
+    if not eligible_users:
+        logger.info("No eligible users for nighttime auto search")
+        return
+    
+    logger.info(f"Found {len(eligible_users)} users for nighttime auto search")
+    
+    # ユーザーを順次実行（負荷分散のため）
+    import random
+    random.shuffle(eligible_users)  # ランダム順序で実行
+    
+    for i, user in enumerate(eligible_users):
+        try:
+            logger.info(f"Executing nighttime auto search for user {user.email} ({i+1}/{len(eligible_users)})")
+            
+            # SEOとRPPの両方を実行
+            seo_success = False
+            rpp_success = False
+            
+            # SEO自動検索
+            if user.auto_seo_search_enabled:
+                try:
+                    result = execute_user_auto_search(user.id)
+                    seo_success = result.get('success', False) if result else False
+                    logger.info(f"SEO auto search for user {user.id}: {'success' if seo_success else 'failed'}")
+                except Exception as e:
+                    logger.error(f"SEO auto search failed for user {user.id}: {e}")
+            
+            # 負荷軽減のため間隔を空ける
+            time.sleep(5)
+            
+            # RPP自動検索
+            if user.auto_rpp_search_enabled:
+                try:
+                    result = execute_user_auto_rpp_search(user.id)
+                    rpp_success = result.get('success', False) if result else False
+                    logger.info(f"RPP auto search for user {user.id}: {'success' if rpp_success else 'failed'}")
+                except Exception as e:
+                    logger.error(f"RPP auto search failed for user {user.id}: {e}")
+            
+            # どちらか一つでも成功した場合は日付を更新
+            if seo_success or rpp_success:
+                user.update_last_auto_search_date()
+            
+            # ユーザー間の間隔を空ける（負荷分散）
+            if i < len(eligible_users) - 1:  # 最後のユーザーでない場合
+                time.sleep(10)  # 10秒間隔
+                
+        except Exception as e:
+            logger.error(f"Nighttime auto search failed for user {user.id}: {e}")
+    
+    logger.info("Nighttime auto search task completed")
 
 
 @shared_task
@@ -108,7 +185,7 @@ def execute_user_auto_search(user_id):
                 continue
         
         # 最終一括検索日を更新
-        user.update_last_bulk_search_date()
+        user.update_last_auto_search_date()
         
         logger.info(f"Auto search completed for user {user_id}. Success: {success_count}, Error: {error_count}")
         
@@ -125,6 +202,137 @@ def execute_user_auto_search(user_id):
         return {'success': False, 'error': 'User not found'}
     except Exception as e:
         logger.error(f"Auto search failed for user {user_id}: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+@shared_task
+def execute_user_auto_rpp_search(user_id):
+    """
+    特定ユーザーのRPP自動検索を実行
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        
+        # サブスクリプションチェック
+        if not user.has_active_subscription():
+            logger.warning(f"User {user_id} does not have active subscription for RPP auto search")
+            return
+        
+        # アクティブなRPPキーワードを取得
+        from .models import RPPKeyword
+        active_rpp_keywords = RPPKeyword.objects.filter(user=user, is_active=True)
+        
+        if not active_rpp_keywords.exists():
+            logger.info(f"No active RPP keywords for user {user_id}")
+            return
+        
+        success_count = 0
+        error_count = 0
+        total_count = active_rpp_keywords.count()
+        
+        logger.info(f"Starting RPP auto search for user {user_id}, {total_count} keywords")
+        
+        for i, keyword in enumerate(active_rpp_keywords):
+            try:
+                # 楽天API制限を考慮して間隔を空ける
+                if i > 0:
+                    time.sleep(2)  # RPPは2秒間隔
+                
+                # RPP検索実行
+                result = scrape_rpp_ranking(
+                    keyword=keyword.keyword,
+                    target_shop_id=keyword.rakuten_shop_id,
+                    target_product_url=keyword.target_product_url
+                )
+                
+                if result['success']:
+                    # 結果を保存
+                    from .models import RPPResult, RPPAd
+                    rpp_result = RPPResult.objects.create(
+                        keyword=keyword,
+                        rank=result['rank'],
+                        total_ads=result['total_ads'],
+                        pages_checked=3,
+                        is_found=result['is_found'],
+                        error_message=result['error']
+                    )
+                    
+                    # 広告データを保存（bulk_create使用で高速化）
+                    rpp_ads_to_create = []
+                    for ad_data in result['ads']:
+                        # 自社商品かどうかを判定
+                        is_own = False
+                        if keyword.rakuten_shop_id.lower() in ad_data.get('shop_name', '').lower():
+                            is_own = True
+                        elif keyword.target_product_url and ad_data.get('product_url'):
+                            if keyword.target_product_url in ad_data['product_url']:
+                                is_own = True
+                        
+                        rpp_ad = RPPAd(
+                            rpp_result=rpp_result,
+                            rank=ad_data.get('rank', 0),
+                            product_name=ad_data.get('product_name', ''),
+                            product_url=ad_data.get('product_url', ''),
+                            product_id=ad_data.get('product_id', ''),
+                            price=ad_data.get('price'),
+                            shop_name=ad_data.get('shop_name', ''),
+                            image_url=ad_data.get('image_url', ''),
+                            catchcopy=ad_data.get('catchcopy', ''),
+                            page_number=ad_data.get('page_number', 1),
+                            position_on_page=ad_data.get('position_on_page', 0),
+                            is_own_product=is_own
+                        )
+                        rpp_ads_to_create.append(rpp_ad)
+                    
+                    # 一括作成で高速化
+                    if rpp_ads_to_create:
+                        try:
+                            RPPAd.objects.bulk_create(rpp_ads_to_create)
+                        except Exception as bulk_error:
+                            logger.error(f"RPP広告データ一括保存エラー: {bulk_error}")
+                            # フォールバック：個別作成
+                            for rpp_ad in rpp_ads_to_create:
+                                try:
+                                    rpp_ad.save()
+                                except Exception:
+                                    pass
+                    
+                    success_count += 1
+                    logger.info(f"RPP auto search progress for user {user_id}: {i+1}/{total_count}")
+                else:
+                    # エラーの場合も結果を保存
+                    from .models import RPPResult
+                    RPPResult.objects.create(
+                        keyword=keyword,
+                        rank=None,
+                        total_ads=0,
+                        pages_checked=0,
+                        is_found=False,
+                        error_message=result['error']
+                    )
+                    error_count += 1
+                    logger.error(f"Error in RPP auto search for keyword {keyword.keyword}: {result['error']}")
+                
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error in RPP auto search for keyword {keyword.keyword}: {e}")
+                continue
+        
+        logger.info(f"RPP auto search completed for user {user_id}. Success: {success_count}, Error: {error_count}")
+        
+        return {
+            'success': True,
+            'user_id': user_id,
+            'success_count': success_count,
+            'error_count': error_count,
+            'total_count': total_count
+        }
+        
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found for RPP auto search")
+        return {'success': False, 'error': 'User not found'}
+    except Exception as e:
+        logger.error(f"RPP auto search failed for user {user_id}: {e}")
         return {'success': False, 'error': str(e)}
 
 
