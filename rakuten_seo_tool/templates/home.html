@@ -50,7 +50,7 @@
                         </div>
                         <h4>SEO順位確認記録</h4>
                         <p class="text-muted">
-                            最大10個のキーワードで毎日の検索順位を自動記録。<br>
+                            最大30〜100個のキーワードで毎日の検索順位を自動記録。<br>
                             順位変動を一目で把握できます。
                         </p>
                     </div>
@@ -93,28 +93,68 @@
     <div class="container">
         <h2 class="text-center mb-5">シンプルな料金プラン</h2>
         <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-4">
-                <div class="card border-primary shadow">
-                    <div class="card-header bg-primary text-white text-center py-4">
+            <!-- スタンダードプラン -->
+            <div class="col-md-6 col-lg-5 mb-4">
+                <div class="card border-primary shadow h-100">
+                    <div class="card-header bg-danger text-white text-center py-4">
                         <h3 class="mb-0">スタンダードプラン</h3>
+                        <small>最もお得</small>
                     </div>
-                    <div class="card-body text-center p-5">
+                    <div class="card-body text-center p-4">
                         <div class="price mb-4">
-                            <span class="display-4 fw-bold">¥3,980</span>
+                            <span class="display-4 fw-bold">¥2,980</span>
                             <span class="text-muted">/月（税込）</span>
                         </div>
                         <ul class="list-unstyled mb-4">
-                            <li class="mb-2"><i class="fas fa-check text-success"></i> SEOキーワード10個まで</li>
-                            <li class="mb-2"><i class="fas fa-check text-success"></i> RPPキーワード10個まで</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> SEOキーワード30個まで</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> RPPキーワード30個まで</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> 毎日自動更新</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> AI分析レポート</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> CSVエクスポート</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> メールサポート</li>
                         </ul>
-                        <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg w-100">
+                        <a href="{% url 'account_signup' %}" class="btn btn-danger btn-lg w-100">
                             初月無料で始める
                         </a>
                     </div>
+                </div>
+            </div>
+            
+            <!-- マスタープラン -->
+            <div class="col-md-6 col-lg-5 mb-4">
+                <div class="card border-warning shadow h-100">
+                    <div class="card-header bg-warning text-dark text-center py-4">
+                        <h3 class="mb-0">マスタープラン</h3>
+                        <small>本格運用向け</small>
+                    </div>
+                    <div class="card-body text-center p-4">
+                        <div class="price mb-4">
+                            <span class="display-4 fw-bold">¥4,980</span>
+                            <span class="text-muted">/月（税込）</span>
+                        </div>
+                        <ul class="list-unstyled mb-4">
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> SEOキーワード100個まで</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> RPPキーワード100個まで</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> 毎日自動更新</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> AI分析レポート</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> CSVエクスポート</li>
+                            <li class="mb-2"><i class="fas fa-check text-success"></i> 優先メールサポート</li>
+                        </ul>
+                        <a href="{% url 'account_signup' %}" class="btn btn-warning btn-lg w-100">
+                            初月無料で始める
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- プラン比較説明 -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-8">
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>どちらのプランも初月完全無料</strong><br>
+                    クレジットカード登録は必要ですが、初月は一切課金されません。いつでもキャンセル可能です。
                 </div>
             </div>
         </div>
