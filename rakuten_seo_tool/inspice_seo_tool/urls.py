@@ -20,9 +20,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from seo_ranking import views
+from accounts.views_signup import CustomSignupView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/signup/', CustomSignupView.as_view(), name='account_signup'),
     path('accounts/', include('accounts.urls')),
     path('accounts/', include('allauth.urls')),
     path('seo/', include('seo_ranking.urls')),

@@ -197,6 +197,98 @@ def billing_info(request):
     })
 
 
+def create_subscription_signup(request):
+    """新規登録時のサブスクリプション作成"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
+    
+    try:
+        import stripe
+        import json
+        from django.contrib.auth import login
+        from .forms import CustomSignupForm
+        
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        data = json.loads(request.body)
+        
+        # フォームデータを作成
+        form_data = {
+            'email': data.get('email'),
+            'password1': data.get('password1'),
+            'password2': data.get('password2'),
+            'company_name': data.get('company_name'),
+            'contact_name': data.get('contact_name'),
+            'phone_number': data.get('phone_number'),
+            'rakuten_shop_id': data.get('rakuten_shop_id'),
+            'subscription_plan': data.get('plan', 'standard'),
+            'terms_agreement': data.get('terms_agreement'),
+        }
+        
+        # フォームバリデーション
+        form = CustomSignupForm(form_data)
+        if not form.is_valid():
+            return JsonResponse({
+                'success': False, 
+                'error': '入力内容に不備があります: ' + str(form.errors)
+            })
+        
+        # ユーザーを作成（仮のrequestオブジェクトを作成）
+        class FakeRequest:
+            def __init__(self):
+                self.user = None
+                self.session = {}
+        
+        fake_request = FakeRequest()
+        user = form.save(fake_request)
+        
+        # Stripeカスタマーを作成
+        customer = stripe.Customer.create(
+            email=user.email,
+            name=user.contact_name,
+            metadata={
+                'user_id': user.id,
+                'company_name': user.company_name,
+                'rakuten_shop_id': user.rakuten_shop_id,
+            }
+        )
+        
+        user.stripe_customer_id = customer.id
+        user.save()
+        
+        # Price IDを決定
+        plan = data.get('plan', 'standard')
+        if plan == 'standard':
+            price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+        elif plan == 'master':
+            price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+        else:
+            return JsonResponse({'success': False, 'error': '無効なプランです'})
+        
+        # トライアル付きサブスクリプションを作成
+        subscription = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{'price': price_id}],
+            trial_period_days=30,  # 30日間の無料トライアル
+            payment_behavior='default_incomplete',
+            payment_settings={'save_default_payment_method': 'on_subscription'},
+            expand=['latest_invoice.payment_intent'],
+        )
+        
+        # ユーザーをログイン
+        login(request, user)
+        
+        return JsonResponse({
+            'success': True,
+            'client_secret': subscription.latest_invoice.payment_intent.client_secret,
+            'subscription_id': subscription.id,
+        })
+        
+    except Exception as e:
+        logger.error(f'Signup subscription creation error: {e}')
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
 @login_required
 def create_subscription(request):
     """サブスクリプション作成"""
