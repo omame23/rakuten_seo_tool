@@ -7,6 +7,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.utils import timezone
+from allauth.account.models import EmailAddress
+from allauth.account.utils import send_email_confirmation
 from .models import User
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,9 @@ def stripe_webhook(request):
         return HttpResponseBadRequest("Invalid signature")
     
     # イベントタイプに応じて処理
-    if event['type'] == 'customer.subscription.created':
+    if event['type'] == 'checkout.session.completed':
+        handle_checkout_completed(event['data']['object'])
+    elif event['type'] == 'customer.subscription.created':
         handle_subscription_created(event['data']['object'])
     elif event['type'] == 'customer.subscription.updated':
         handle_subscription_updated(event['data']['object'])
@@ -51,6 +55,67 @@ def stripe_webhook(request):
         logger.info(f"Unhandled event type: {event['type']}")
     
     return HttpResponse(status=200)
+
+
+def handle_checkout_completed(session):
+    """チェックアウト完了時の処理"""
+    try:
+        # metadataからuser_idを取得
+        user_id = session.get('metadata', {}).get('user_id')
+        if not user_id:
+            logger.error("No user_id in checkout session metadata")
+            return
+            
+        # ユーザーを取得
+        user = User.objects.get(id=user_id)
+        
+        # Stripeカスタマーを関連付け
+        customer_id = session.get('customer')
+        if customer_id:
+            user.stripe_customer_id = customer_id
+            
+        # サブスクリプション情報を取得してステータスを更新
+        subscription_id = session.get('subscription')
+        if subscription_id:
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            
+            if subscription.status == 'trialing':
+                user.subscription_status = 'trial'
+            elif subscription.status == 'active':
+                user.subscription_status = 'active'
+        
+        user.save()
+        
+        # メール認証のセットアップ
+        email_address, created = EmailAddress.objects.get_or_create(
+            user=user,
+            email=user.email.lower(),
+            defaults={'verified': False, 'primary': True}
+        )
+        
+        # まだ認証されていない場合、認証メールを送信
+        if not email_address.verified:
+            try:
+                from django.http import HttpRequest
+                # ダミーのrequestオブジェクトを作成
+                request = HttpRequest()
+                request.META['HTTP_HOST'] = settings.ALLOWED_HOSTS[0] if settings.ALLOWED_HOSTS else 'localhost'
+                request.META['SERVER_NAME'] = settings.ALLOWED_HOSTS[0] if settings.ALLOWED_HOSTS else 'localhost'
+                request.META['SERVER_PORT'] = '8000'
+                request.is_secure = lambda: False
+                
+                send_email_confirmation(request, user, signup=True)
+                logger.info(f"Email confirmation sent to user {user.id}")
+            except Exception as e:
+                logger.error(f"Failed to send email confirmation to user {user.id}: {e}")
+        
+        logger.info(f"Checkout completed for user {user.id}, customer {customer_id}")
+        
+    except User.DoesNotExist:
+        logger.error(f"User not found for user_id {user_id}")
+    except Exception as e:
+        logger.error(f"Error handling checkout completed: {e}")
 
 
 def handle_subscription_created(subscription):

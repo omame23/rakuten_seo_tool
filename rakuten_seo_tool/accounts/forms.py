@@ -137,29 +137,17 @@ class CustomSignupForm(SignupForm):
         user.phone_number = self.cleaned_data['phone_number']
         user.rakuten_shop_id = self.cleaned_data.get('rakuten_shop_id', '')
         
-        # 選択されたプランを設定（Stripeセッション情報があれば優先）
-        if hasattr(request, 'session') and request.session.get('selected_plan'):
-            user.subscription_plan = request.session.get('selected_plan')
-            # Stripe情報を設定
-            user.stripe_customer_id = request.session.get('stripe_customer_id')
-        else:
-            user.subscription_plan = self.cleaned_data.get('subscription_plan', 'standard')
+        # 選択されたプランを設定
+        user.subscription_plan = self.cleaned_data.get('subscription_plan', 'standard')
         
-        # 決済が完了している場合はアクティブ、そうでなければトライアル
-        if hasattr(request, 'session') and request.session.get('stripe_customer_id'):
-            user.subscription_status = 'active'  # Stripeで決済済み
-        else:
-            # 無料トライアル期間を設定（30日間）
-            user.subscription_status = 'trial'
-            user.trial_end_date = timezone.now() + timedelta(days=30)
+        # 決済前なので一旦 inactive に設定
+        user.subscription_status = 'inactive'
         
         user.save()
         
-        # セッション情報をクリア
+        # 選択されたプランをセッションに保存
         if hasattr(request, 'session'):
-            request.session.pop('stripe_session_id', None)
-            request.session.pop('stripe_customer_id', None)
-            request.session.pop('stripe_subscription_id', None)
-            request.session.pop('selected_plan', None)
+            request.session['user_selected_plan'] = user.subscription_plan
+            request.session['user_id_for_checkout'] = user.id
         
         return user

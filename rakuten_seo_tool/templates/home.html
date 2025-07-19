@@ -17,9 +17,9 @@
                     楽天市場での売上アップを強力にサポートします。
                 </p>
                 <div class="d-flex gap-3">
-                    <button onclick="startTrial('standard')" class="btn btn-primary btn-lg">
+                    <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
                         <i class="fas fa-rocket"></i> 無料で始める
-                    </button>
+                    </a>
                     <a href="#features" class="btn btn-outline-secondary btn-lg">
                         <i class="fas fa-info-circle"></i> 機能を見る
                     </a>
@@ -113,9 +113,9 @@
                             <li class="mb-2"><i class="fas fa-check text-success"></i> CSVエクスポート</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> メールサポート</li>
                         </ul>
-                        <button onclick="startTrial('standard')" class="btn btn-danger btn-lg w-100">
+                        <a href="{% url 'account_signup' %}" class="btn btn-danger btn-lg w-100">
                             初月無料で始める
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -140,9 +140,9 @@
                             <li class="mb-2"><i class="fas fa-check text-success"></i> CSVエクスポート</li>
                             <li class="mb-2"><i class="fas fa-check text-success"></i> 優先メールサポート</li>
                         </ul>
-                        <button onclick="startTrial('master')" class="btn btn-warning btn-lg w-100">
+                        <a href="{% url 'account_signup' %}" class="btn btn-warning btn-lg w-100">
                             初月無料で始める
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -169,9 +169,9 @@
             初月無料でフル機能をお試しいただけます。<br>
             クレジットカード登録は必要ですが、初月は一切課金されません。
         </p>
-        <button onclick="startTrial('standard')" class="btn btn-primary btn-lg">
+        <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
             <i class="fas fa-rocket"></i> 無料トライアルを開始
-        </button>
+        </a>
     </div>
 </section>
 {% endblock %}
@@ -204,34 +204,4 @@
 </style>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-async function startTrial(plan) {
-    try {
-        const response = await fetch('{% url "accounts:create_checkout_session" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: JSON.stringify({
-                plan: plan
-            }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Stripeチェックアウトページにリダイレクト
-            window.location.href = data.checkout_url;
-        } else {
-            alert('エラーが発生しました: ' + data.error);
-        }
-        
-    } catch (error) {
-        alert('通信エラーが発生しました。');
-    }
-}
-</script>
-{% csrf_token %}
 {% endblock %}

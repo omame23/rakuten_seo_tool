@@ -34,71 +34,48 @@ class CustomSignupView(SignupView):
     def form_valid(self, form):
         """フォームが有効な場合の処理"""
         try:
-            # Payment Method IDを取得
-            payment_method_id = self.request.POST.get('payment_method_id')
-            if not payment_method_id:
-                messages.error(self.request, 'クレジットカード情報が正しく取得できませんでした。')
-                return self.form_invalid(form)
-            
-            # ユーザーを作成（まだデータベースに保存しない）
+            # ユーザーを作成
             user = form.save(self.request)
             
-            # Stripeカスタマーを作成
-            try:
-                customer = stripe.Customer.create(
-                    email=user.email,
-                    name=user.contact_name,
-                    payment_method=payment_method_id,
-                    invoice_settings={'default_payment_method': payment_method_id},
-                    metadata={
-                        'user_id': user.id,
-                        'company_name': user.company_name,
-                        'rakuten_shop_id': user.rakuten_shop_id,
-                    }
-                )
-                
-                # ユーザーにStripeカスタマーIDを設定
-                user.stripe_customer_id = customer.id
-                user.save()
-                
-                # 選択されたプランに応じてPrice IDを決定
-                plan = form.cleaned_data.get('subscription_plan', 'standard')
-                if plan == 'standard':
-                    price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
-                else:  # master
-                    price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
-                
-                # トライアル付きサブスクリプションを作成
-                subscription = stripe.Subscription.create(
-                    customer=customer.id,
-                    items=[{'price': price_id}],
-                    trial_period_days=30,  # 30日間の無料トライアル
-                    payment_settings={'save_default_payment_method': 'on_subscription'},
-                    expand=['latest_invoice.payment_intent'],
-                )
-                
-                logger.info(f"User {user.id} registered with Stripe subscription {subscription.id}")
-                
-                # allauthの完了処理
-                ret = complete_signup(
-                    self.request, user,
-                    app_settings.EMAIL_VERIFICATION,
-                    self.get_success_url()
-                )
-                
-                messages.success(
-                    self.request,
-                    f'登録が完了しました！{plan.title()}プランで30日間の無料トライアルが開始されました。'
-                )
-                
-                return ret
-                
-            except stripe.error.StripeError as e:
-                logger.error(f"Stripe error during signup: {e}")
-                # Stripeエラーの場合、ユーザーは作成されているので削除
-                user.delete()
-                messages.error(self.request, f'決済処理でエラーが発生しました: {str(e)}')
-                return self.form_invalid(form)
+            # 選択されたプランを取得
+            plan = self.request.session.get('user_selected_plan', 'standard')
+            
+            # Stripeチェックアウトセッションを作成
+            import stripe
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            
+            # Price IDを決定
+            if plan == 'standard':
+                price_id = 'price_1RmXcoLifu2YUCmRzmEJLAYd'
+                plan_name = 'スタンダードプラン'
+            else:  # master
+                price_id = 'price_1RmXdwLifu2YUCmRI3rZQUGH'
+                plan_name = 'マスタープラン'
+            
+            # チェックアウトセッションを作成
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': price_id,
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                subscription_data={
+                    'trial_period_days': 30,  # 30日間無料トライアル
+                },
+                success_url=self.request.build_absolute_uri('/account/email/'),
+                cancel_url=self.request.build_absolute_uri('/accounts/signup/'),
+                metadata={
+                    'user_id': user.id,
+                    'plan': plan,
+                    'plan_name': plan_name,
+                }
+            )
+            
+            logger.info(f"User {user.id} created, redirecting to Stripe checkout")
+            
+            # Stripeチェックアウトにリダイレクト
+            return redirect(checkout_session.url)
                 
         except Exception as e:
             logger.error(f"Signup error: {e}")
