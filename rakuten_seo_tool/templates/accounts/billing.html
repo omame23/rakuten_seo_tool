@@ -151,40 +151,7 @@
             </div>
             {% endif %}
 
-            <!-- 支払い方法セクション -->
-            {% if user.subscription_status == 'trial' %}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-credit-card"></i> 支払い方法の登録</h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>トライアル期間終了に向けて支払い方法を登録してください</strong><br>
-                        カード情報を登録することで、トライアル終了後も継続してサービスをご利用いただけます。
-                    </div>
-
-                    <form id="payment-form">
-                        <div class="mb-3">
-                            <label class="form-label">カード情報</label>
-                            <div id="card-element" class="form-control" style="padding: 12px;">
-                                <!-- Stripe Elements will create form elements here -->
-                            </div>
-                            <div id="card-errors" role="alert" class="text-danger mt-2"></div>
-                        </div>
-
-                        <button id="submit-payment" class="btn btn-primary btn-lg w-100">
-                            <span id="button-text">
-                                <i class="fas fa-lock"></i> 支払い方法を登録してサブスクリプション開始
-                            </span>
-                            <div id="spinner" class="spinner-border spinner-border-sm d-none" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </button>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
+            <!-- 新規登録ユーザーは既にStripe決済済みなので支払い方法登録は不要 -->
         </div>
 
         <!-- 右カラム：アクションメニュー -->
@@ -271,80 +238,7 @@
 {% block extra_js %}
 <script src="https://js.stripe.com/v3/"></script>
 <script>
-const stripe = Stripe('{{ stripe_public_key }}');
-const elements = stripe.elements();
-
-// Create card element
-const cardElement = elements.create('card', {
-    style: {
-        base: {
-            fontSize: '16px',
-            color: '#424770',
-            '::placeholder': {
-                color: '#aab7c4',
-            },
-        },
-    },
-});
-
-cardElement.mount('#card-element');
-
-// Handle form submission
-const form = document.getElementById('payment-form');
-if (form) {
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        
-        const submitButton = document.getElementById('submit-payment');
-        const buttonText = document.getElementById('button-text');
-        const spinner = document.getElementById('spinner');
-        
-        // Disable button and show spinner
-        submitButton.disabled = true;
-        buttonText.classList.add('d-none');
-        spinner.classList.remove('d-none');
-        
-        try {
-            // Create subscription
-            const response = await fetch('{% url "accounts:create_subscription" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                },
-                body: JSON.stringify({
-                    plan: '{{ user.subscription_plan }}'
-                }),
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                const { error } = await stripe.confirmCardPayment(data.client_secret, {
-                    payment_method: {
-                        card: cardElement,
-                    }
-                });
-                
-                if (error) {
-                    document.getElementById('card-errors').textContent = error.message;
-                } else {
-                    // Success - redirect to dashboard
-                    window.location.href = '{% url "accounts:dashboard" %}';
-                }
-            } else {
-                document.getElementById('card-errors').textContent = data.error;
-            }
-        } catch (error) {
-            document.getElementById('card-errors').textContent = '通信エラーが発生しました。';
-        }
-        
-        // Re-enable button
-        submitButton.disabled = false;
-        buttonText.classList.remove('d-none');
-        spinner.classList.add('d-none');
-    });
-}
+// 新規登録ユーザーは既にStripe決済済みなので支払い方法登録フォームは不要
 
 // Plan change function
 function changePlan(newPlan) {
