@@ -128,6 +128,22 @@ sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "systemctl restart inspice.se
 - **手順**: `git pull`後に `systemctl restart inspice.service` を実行
 - **確認方法**: Gunicornログでプロセス再起動を確認
 
+### サーバータイムアウト設定
+
+**RPP一括検索のタイムアウト対策**
+
+- **Nginx設定**: `/etc/nginx/sites-available/inspice.work`
+  - `proxy_read_timeout 300s` (5分)
+  - `proxy_connect_timeout 300s`
+  - `proxy_send_timeout 300s`
+
+- **Gunicorn設定**: `/var/www/inspice/rakuten_seo_tool/gunicorn.conf.py`
+  - `timeout = 300` (5分)
+
+- **JavaScript設定**: 動的タイムアウト計算
+  - キーワード数 × 13秒 + 60秒マージン
+  - 最大50キーワードまで対応
+
 ```bash
 # Gunicorn再起動（コード変更反映のため）
 sshpass -p 'MaMe@1756WaRuo' ssh root@162.43.53.160 "systemctl restart inspice.service"
