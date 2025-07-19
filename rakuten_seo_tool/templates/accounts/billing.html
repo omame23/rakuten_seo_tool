@@ -8,10 +8,14 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1><i class="fas fa-credit-card"></i> 請求情報</h1>
-                {% if user.subscription_status == 'active' %}
-                    <span class="badge bg-success fs-6">有効なサブスクリプション</span>
-                {% elif user.subscription_status == 'trial' %}
-                    <span class="badge bg-info fs-6">無料トライアル中</span>
+                {% if subscription_info.is_trial %}
+                    <span class="badge bg-info fs-6">無料期間中</span>
+                {% elif subscription_info.is_active %}
+                    {% if subscription_info.plan == 'standard' %}
+                        <span class="badge bg-success fs-6">スタンダード会員</span>
+                    {% else %}
+                        <span class="badge bg-warning fs-6">マスター会員</span>
+                    {% endif %}
                 {% else %}
                     <span class="badge bg-danger fs-6">サブスクリプション無効</span>
                 {% endif %}
@@ -55,10 +59,14 @@
                         </div>
                         <div class="col-md-6">
                             <h6>ステータス</h6>
-                            {% if user.subscription_status == 'active' %}
-                                <span class="badge bg-success">有効</span>
-                            {% elif user.subscription_status == 'trial' %}
-                                <span class="badge bg-info">トライアル</span>
+                            {% if subscription_info.is_trial %}
+                                <span class="badge bg-info">無料期間中</span>
+                            {% elif subscription_info.is_active %}
+                                {% if subscription_info.plan == 'standard' %}
+                                    <span class="badge bg-success">スタンダード会員</span>
+                                {% else %}
+                                    <span class="badge bg-warning">マスター会員</span>
+                                {% endif %}
                             {% elif user.subscription_status == 'past_due' %}
                                 <span class="badge bg-warning">支払い遅延</span>
                             {% elif user.subscription_status == 'canceled' %}
@@ -186,13 +194,15 @@
                     <h5 class="mb-0"><i class="fas fa-cogs"></i> アクション</h5>
                 </div>
                 <div class="card-body">
-                    {% if user.subscription_status == 'active' %}
+                    {% if subscription_info.is_trial or subscription_info.is_active %}
                         <button class="btn btn-danger w-100 mb-3" onclick="cancelSubscription()">
-                            <i class="fas fa-times"></i> サブスクリプションをキャンセル
+                            <i class="fas fa-times"></i> サービスを解約する
                         </button>
+                        {% if subscription_info.is_active %}
                         <button class="btn btn-outline-primary w-100 mb-3" onclick="updatePaymentMethod()">
                             <i class="fas fa-edit"></i> 支払い方法を変更
                         </button>
+                        {% endif %}
                     {% endif %}
                     
                     <a href="{% url 'accounts:settings' %}" class="btn btn-outline-secondary w-100">
@@ -362,22 +372,39 @@ function changePlan(newPlan) {
 
 // Cancel subscription function
 function cancelSubscription() {
-    if (confirm('サブスクリプションをキャンセルしますか？次回請求日まではサービスを継続してご利用いただけます。')) {
-        fetch('{% url "accounts:cancel_subscription" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('キャンセルに失敗しました: ' + data.error);
-            }
-        });
+    const message = `
+サービスを解約しますか？
+
+解約を実行すると：
+• Stripeでの課金が即座に停止されます
+• アカウントデータは削除されます
+• 今後このサービスにアクセスできなくなります
+
+この操作は取り消すことができません。
+本当に解約しますか？`;
+
+    if (confirm(message)) {
+        if (confirm('最終確認：本当にサービスを解約しますか？この操作は取り消せません。')) {
+            fetch('{% url "accounts:cancel_subscription" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('解約が完了しました。ご利用ありがとうございました。');
+                    window.location.href = '/';
+                } else {
+                    alert('解約に失敗しました: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('通信エラーが発生しました。しばらく時間をおいて再度お試しください。');
+            });
+        }
     }
 }
 

@@ -23,12 +23,7 @@ class DashboardView(TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        # サブスクリプション状態のチェック
-        if not user.has_active_subscription() and not user.is_master:
-            messages.warning(
-                self.request,
-                'サブスクリプションが無効です。全機能を利用するには有効なサブスクリプションが必要です。'
-            )
+        # 新規登録ユーザーはStripe決済済みなので警告表示は不要
         
         # マスターアカウントの場合は特別なメッセージ
         if user.is_master:
@@ -194,8 +189,38 @@ def account_settings(request):
 @login_required
 def billing_info(request):
     """請求情報ページ"""
+    user = request.user
+    
+    # サブスクリプション状態の詳細情報を取得
+    subscription_info = {
+        'status': user.subscription_status,
+        'plan': user.subscription_plan,
+        'is_trial': user.subscription_status == 'trial',
+        'is_active': user.subscription_status == 'active',
+        'trial_end_date': user.trial_end_date,
+    }
+    
+    # Stripeサブスクリプション情報を取得
+    stripe_subscription = None
+    if user.stripe_customer_id:
+        try:
+            import stripe
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            
+            subscriptions = stripe.Subscription.list(
+                customer=user.stripe_customer_id,
+                limit=1
+            )
+            if subscriptions.data:
+                stripe_subscription = subscriptions.data[0]
+                
+        except Exception as e:
+            logger.error(f'Failed to get Stripe subscription: {e}')
+    
     return render(request, 'accounts/billing.html', {
         'stripe_public_key': settings.STRIPE_PUBLIC_KEY,
+        'subscription_info': subscription_info,
+        'stripe_subscription': stripe_subscription,
     })
 
 
@@ -499,41 +524,50 @@ def change_plan(request):
 
 @login_required
 def cancel_subscription(request):
-    """サブスクリプションキャンセル"""
+    """サービス解約（Stripe解約 + アカウント削除）"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
     
     try:
         import stripe
+        from django.contrib.auth import logout
         
         stripe.api_key = settings.STRIPE_SECRET_KEY
+        user = request.user
         
-        if not request.user.stripe_customer_id:
-            return JsonResponse({'success': False, 'error': 'カスタマーIDが見つかりません'})
+        # Stripeサブスクリプションの解約
+        if user.stripe_customer_id:
+            try:
+                # アクティブなサブスクリプションを取得
+                subscriptions = stripe.Subscription.list(
+                    customer=user.stripe_customer_id,
+                    limit=10  # 全てのサブスクリプションを取得
+                )
+                
+                # 全てのサブスクリプションを即座にキャンセル
+                for subscription in subscriptions.data:
+                    if subscription.status in ['active', 'trialing']:
+                        stripe.Subscription.cancel(subscription.id)
+                        logger.info(f'Cancelled Stripe subscription {subscription.id} for user {user.id}')
+                
+            except Exception as e:
+                logger.error(f'Failed to cancel Stripe subscription for user {user.id}: {e}')
+                # Stripeエラーでも続行
         
-        # サブスクリプション一覧を取得
-        subscriptions = stripe.Subscription.list(
-            customer=request.user.stripe_customer_id,
-            status='active',
-            limit=1
-        )
+        # ユーザーデータの削除前にログ出力
+        logger.info(f'Deleting user account: {user.email} (ID: {user.id})')
         
-        if not subscriptions.data:
-            return JsonResponse({'success': False, 'error': 'アクティブなサブスクリプションが見つかりません'})
+        # セッションからユーザーをログアウト
+        logout(request)
         
-        subscription = subscriptions.data[0]
+        # ユーザーアカウントを削除（関連データも自動削除される）
+        user.delete()
         
-        # サブスクリプションをキャンセル（期間末まで有効）
-        stripe.Subscription.modify(
-            subscription.id,
-            cancel_at_period_end=True
-        )
-        
-        return JsonResponse({'success': True})
+        return JsonResponse({'success': True, 'message': '解約が完了しました。ご利用ありがとうございました。'})
         
     except Exception as e:
-        logger.error(f'Subscription cancel error: {e}')
-        return JsonResponse({'success': False, 'error': str(e)})
+        logger.error(f'Account cancellation error: {e}')
+        return JsonResponse({'success': False, 'error': '解約処理中にエラーが発生しました。サポートまでお問い合わせください。'})
 
 
 # confirm_email ビューは削除（allauthのデフォルト処理を使用）
