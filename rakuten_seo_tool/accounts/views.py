@@ -536,23 +536,39 @@ def cancel_subscription(request):
         user = request.user
         
         # Stripeサブスクリプションの解約
-        if user.stripe_customer_id:
-            try:
-                # アクティブなサブスクリプションを取得
+        try:
+            # stripe_customer_idがある場合はそれを使用、ない場合はメールアドレスで検索
+            customers_to_cancel = []
+            
+            if user.stripe_customer_id:
+                customers_to_cancel.append(user.stripe_customer_id)
+            else:
+                # メールアドレスでStripeカスタマーを検索
+                customers = stripe.Customer.list(email=user.email, limit=10)
+                for customer in customers.data:
+                    customers_to_cancel.append(customer.id)
+                    logger.info(f'Found Stripe customer {customer.id} for email {user.email}')
+            
+            # 各カスタマーのサブスクリプションをキャンセル
+            for customer_id in customers_to_cancel:
                 subscriptions = stripe.Subscription.list(
-                    customer=user.stripe_customer_id,
-                    limit=10  # 全てのサブスクリプションを取得
+                    customer=customer_id,
+                    limit=10
                 )
                 
-                # 全てのサブスクリプションを即座にキャンセル
                 for subscription in subscriptions.data:
-                    if subscription.status in ['active', 'trialing']:
+                    if subscription.status in ['active', 'trialing', 'past_due']:
                         stripe.Subscription.cancel(subscription.id)
-                        logger.info(f'Cancelled Stripe subscription {subscription.id} for user {user.id}')
+                        logger.info(f'Cancelled Stripe subscription {subscription.id} (status: {subscription.status}) for user {user.id}')
+                    else:
+                        logger.info(f'Skipped Stripe subscription {subscription.id} (status: {subscription.status}) for user {user.id}')
+            
+            if not customers_to_cancel:
+                logger.warning(f'No Stripe customers found for user {user.id} ({user.email})')
                 
-            except Exception as e:
-                logger.error(f'Failed to cancel Stripe subscription for user {user.id}: {e}')
-                # Stripeエラーでも続行
+        except Exception as e:
+            logger.error(f'Failed to cancel Stripe subscription for user {user.id}: {e}')
+            # Stripeエラーでも続行
         
         # ユーザーデータの削除前にログ出力
         logger.info(f'Deleting user account: {user.email} (ID: {user.id})')
