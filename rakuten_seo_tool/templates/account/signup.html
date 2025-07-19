@@ -10,10 +10,18 @@
             <div class="card shadow-sm mt-5">
                 <div class="card-body p-5">
                     <h2 class="text-center mb-4">新規会員登録</h2>
+                    {% if request.session.selected_plan %}
+                    <div class="alert alert-success text-center mb-4">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>{{ request.session.selected_plan|default:"スタンダード" }}プラン</strong>で決済が完了しました！<br>
+                        <small>アカウント登録を完了して、30日間の無料トライアルを開始しましょう。</small>
+                    </div>
+                    {% else %}
                     <p class="text-center text-muted mb-4">
                         <span class="badge bg-success">初月無料</span>
-                        クレジットカード登録で全機能をお試しいただけます
+                        アカウント登録後、メール認証で利用開始
                     </p>
+                    {% endif %}
                     
                     <form method="post" class="signup-form needs-validation" id="signup-form" novalidate>
                         {% csrf_token %}
@@ -134,6 +142,7 @@
                             {% endif %}
                         </div>
                         
+                        {% if not request.session.selected_plan %}
                         <h5 class="mb-3 mt-4">プラン選択</h5>
                         
                         <div class="mb-4">
@@ -199,27 +208,11 @@
                                 <small>プランは後から変更可能です。まずはお試しでご利用ください。</small>
                             </div>
                         </div>
+                        {% else %}
+                        <!-- 決済済みプランを表示 -->
+                        <input type="hidden" name="subscription_plan" value="{{ request.session.selected_plan }}">
+                        {% endif %}
                         
-                        <h5 class="mb-3 mt-4">クレジットカード情報</h5>
-                        
-                        <div class="mb-4">
-                            <div class="alert alert-warning">
-                                <i class="fas fa-credit-card"></i>
-                                <strong>初月完全無料</strong><br>
-                                <small>クレジットカード情報は必須ですが、初月は課金されません。2ヶ月目から選択プランの料金が発生します。</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">カード情報 <span class="text-danger">*</span></label>
-                                <div id="card-element" class="form-control" style="padding: 12px;">
-                                    <!-- Stripe Elements will create form elements here -->
-                                </div>
-                                <div id="card-errors" role="alert" class="text-danger mt-2"></div>
-                                <small class="form-text text-muted">
-                                    <i class="fas fa-lock"></i> SSL暗号化により安全に保護されています
-                                </small>
-                            </div>
-                        </div>
                         
                         <div class="form-check mb-4">
                             <input type="checkbox" name="terms_agreement" class="form-check-input {% if form.terms_agreement.errors %}is-invalid{% endif %}" 
@@ -237,7 +230,7 @@
                         
                         <button type="submit" class="btn btn-primary btn-lg w-100" id="submit-btn">
                             <span id="button-text">
-                                <i class="fas fa-user-plus"></i> 無料で始める
+                                <i class="fas fa-user-plus"></i> アカウントを作成（認証メール送信）
                             </span>
                             <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
                         </button>
@@ -269,98 +262,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://js.stripe.com/v3/"></script>
 <script>
-const stripe = Stripe('{{ stripe_public_key }}');
-const elements = stripe.elements();
-
-// Create card element
-const cardElement = elements.create('card', {
-    style: {
-        base: {
-            fontSize: '16px',
-            color: '#424770',
-            '::placeholder': {
-                color: '#aab7c4',
-            },
-        },
-    },
-});
-
-cardElement.mount('#card-element');
-
-// Handle form submission  
-document.getElementById('signup-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    
-    const submitButton = document.getElementById('submit-btn');
-    const buttonText = document.getElementById('button-text');
-    const spinner = document.getElementById('spinner');
-    
-    // Disable button and show spinner
-    submitButton.disabled = true;
-    buttonText.classList.add('d-none');
-    spinner.classList.remove('d-none');
-    
-    try {
-        // Get form data
-        const formData = new FormData(event.target);
-        const planType = formData.get('subscription_plan');
-        
-        // Step 1: Create customer and subscription on backend
-        const response = await fetch('{% url "accounts:create_subscription_signup" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: JSON.stringify({
-                plan: planType,
-                email: formData.get('email'),
-                company_name: formData.get('company_name'),
-                contact_name: formData.get('contact_name'),
-                phone_number: formData.get('phone_number'),
-                rakuten_shop_id: formData.get('rakuten_shop_id'),
-                password1: formData.get('password1'),
-                password2: formData.get('password2'),
-                terms_agreement: formData.get('terms_agreement')
-            }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Step 2: Confirm payment with Stripe
-            const { error } = await stripe.confirmCardPayment(data.client_secret, {
-                payment_method: {
-                    card: cardElement,
-                    billing_details: {
-                        name: formData.get('contact_name'),
-                        email: formData.get('email'),
-                    }
-                }
-            });
-            
-            if (error) {
-                document.getElementById('card-errors').textContent = error.message;
-            } else {
-                // Success - redirect to dashboard
-                window.location.href = '/accounts/dashboard/';
-            }
-        } else {
-            document.getElementById('card-errors').textContent = data.error || '登録処理でエラーが発生しました。';
-        }
-        
-    } catch (error) {
-        document.getElementById('card-errors').textContent = '通信エラーが発生しました。';
-    }
-    
-    // Re-enable button
-    submitButton.disabled = false;
-    buttonText.classList.remove('d-none');
-    spinner.classList.add('d-none');
-});
-
 // Password toggle functionality
 document.querySelectorAll('.password-toggle').forEach(button => {
     button.addEventListener('click', function() {
@@ -404,33 +306,5 @@ document.querySelectorAll('.password-toggle').forEach(button => {
         margin-bottom: 0.5rem;
     }
 
-    #card-element {
-        background-color: white;
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    }
-
-    #card-element:focus {
-        border-color: #80bdff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-
-    .StripeElement {
-        height: 40px;
-        padding: 10px 12px;
-        color: #32325d;
-        background-color: white;
-        border: 1px solid transparent;
-        border-radius: 4px;
-    }
-
-    .StripeElement--focus {
-        box-shadow: 0 1px 3px 0 #cfd7df;
-    }
-
-    .StripeElement--invalid {
-        border-color: #fa755a;
-    }
 </style>
 {% endblock %}

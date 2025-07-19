@@ -197,6 +197,91 @@ def billing_info(request):
     })
 
 
+def create_checkout_session(request):
+    """Stripeチェックアウトセッション作成"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POSTメソッドが必要です'})
+    
+    try:
+        import stripe
+        import json
+        
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        data = json.loads(request.body)
+        plan = data.get('plan', 'standard')
+        
+        # Price IDを決定
+        if plan == 'standard':
+            price_id = 'price_1RmVueQ5K9ikjqbDDkLo7lXg'
+            plan_name = 'スタンダードプラン'
+        elif plan == 'master':
+            price_id = 'price_1RmVvXQ5K9ikjqbDHsmutBvF'
+            plan_name = 'マスタープラン'
+        else:
+            return JsonResponse({'success': False, 'error': '無効なプランです'})
+        
+        # チェックアウトセッションを作成
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            subscription_data={
+                'trial_period_days': 30,  # 30日間無料トライアル
+            },
+            success_url=request.build_absolute_uri('/accounts/checkout/success/') + '?session_id={CHECKOUT_SESSION_ID}&plan=' + plan,
+            cancel_url=request.build_absolute_uri('/'),
+            metadata={
+                'plan': plan,
+                'plan_name': plan_name,
+            }
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'checkout_url': checkout_session.url,
+            'session_id': checkout_session.id,
+        })
+        
+    except Exception as e:
+        logger.error(f'Checkout session creation error: {e}')
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def checkout_success(request):
+    """チェックアウト成功後の処理"""
+    session_id = request.GET.get('session_id')
+    plan = request.GET.get('plan', 'standard')
+    
+    if not session_id:
+        messages.error(request, 'セッションIDが見つかりません。')
+        return redirect('home')
+    
+    try:
+        import stripe
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        
+        # セッション情報を取得
+        session = stripe.checkout.Session.retrieve(session_id)
+        
+        # セッション情報をsessionに保存
+        request.session['stripe_session_id'] = session_id
+        request.session['stripe_customer_id'] = session.customer
+        request.session['stripe_subscription_id'] = session.subscription
+        request.session['selected_plan'] = plan
+        
+        # 新規登録ページにリダイレクト
+        return redirect('account_signup')
+        
+    except Exception as e:
+        logger.error(f'Checkout success error: {e}')
+        messages.error(request, 'チェックアウト処理でエラーが発生しました。')
+        return redirect('home')
+
+
 def create_subscription_signup(request):
     """新規登録時のサブスクリプション作成"""
     if request.method != 'POST':

@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import (
     DashboardView, account_settings, billing_info,
-    create_subscription, create_subscription_signup, change_plan, cancel_subscription
+    create_subscription, create_subscription_signup, create_checkout_session, checkout_success,
+    change_plan, cancel_subscription
 )
 from .views_master import (
     StoreListView, StoreDetailView, StoreCreateView, 
@@ -18,6 +19,8 @@ urlpatterns = [
     path('billing/', billing_info, name='billing'),
     path('billing/subscribe/', create_subscription, name='create_subscription'),
     path('signup/subscribe/', create_subscription_signup, name='create_subscription_signup'),
+    path('checkout/create/', create_checkout_session, name='create_checkout_session'),
+    path('checkout/success/', checkout_success, name='checkout_success'),
     path('billing/change-plan/', change_plan, name='change_plan'),
     path('billing/cancel/', cancel_subscription, name='cancel_subscription'),
     
