@@ -43,42 +43,73 @@ def auto_keyword_search():
     
     logger.info(f"Found {len(users_to_search)} master users for auto search")
     
-    # 各マスターユーザーの自動検索を実行
-    for user in users_to_search:
+    # 各マスターユーザーの自動検索を実行（招待アカウント全体が対象）
+    for master_user in users_to_search:
         try:
-            logger.info(f"Executing auto search for master user {user.email} (SEO: {user.auto_seo_search_enabled}, RPP: {user.auto_rpp_search_enabled})")
+            logger.info(f"Executing auto search for master user {master_user.email} and all invited users")
             
-            seo_success = False
-            rpp_success = False
+            # マスターアカウントが招待した全アカウントを取得
+            invited_users = User.objects.filter(is_invited_user=True, is_active=True)
+            target_users = list(invited_users)
             
-            # SEO自動検索
-            if user.auto_seo_search_enabled:
+            # マスターアカウント自身も含める（キーワードがある場合）
+            from seo_ranking.models import Keyword, RPPKeyword
+            master_seo_count = Keyword.objects.filter(user=master_user, is_active=True).count()
+            master_rpp_count = RPPKeyword.objects.filter(user=master_user, is_active=True).count()
+            if master_seo_count > 0 or master_rpp_count > 0:
+                target_users.append(master_user)
+            
+            logger.info(f"Target users for master auto search: {len(target_users)} users")
+            
+            total_seo_success = 0
+            total_rpp_success = 0
+            
+            for user in target_users:
                 try:
-                    result = execute_user_auto_search(user.id)
-                    seo_success = result.get('success', False) if result else False
-                    logger.info(f"SEO auto search for master user {user.id}: {'success' if seo_success else 'failed'}")
+                    logger.info(f"Processing user: {user.email}")
+                    
+                    user_seo_success = False
+                    user_rpp_success = False
+                    
+                    # SEO自動検索（マスターの設定に従う）
+                    if master_user.auto_seo_search_enabled:
+                        try:
+                            result = execute_user_auto_search(user.id)
+                            user_seo_success = result.get('success', False) if result else False
+                            if user_seo_success:
+                                total_seo_success += 1
+                            logger.info(f"SEO auto search for user {user.email}: {'success' if user_seo_success else 'failed'}")
+                        except Exception as e:
+                            logger.error(f"SEO auto search failed for user {user.email}: {e}")
+                    
+                    # 負荷軽減のため間隔を空ける
+                    time.sleep(3)
+                    
+                    # RPP自動検索（マスターの設定に従う）
+                    if master_user.auto_rpp_search_enabled:
+                        try:
+                            result = execute_user_auto_rpp_search(user.id)
+                            user_rpp_success = result.get('success', False) if result else False
+                            if user_rpp_success:
+                                total_rpp_success += 1
+                            logger.info(f"RPP auto search for user {user.email}: {'success' if user_rpp_success else 'failed'}")
+                        except Exception as e:
+                            logger.error(f"RPP auto search failed for user {user.email}: {e}")
+                    
+                    # ユーザー間の間隔
+                    if user != target_users[-1]:  # 最後のユーザーでない場合
+                        time.sleep(5)
+                        
                 except Exception as e:
-                    logger.error(f"SEO auto search failed for master user {user.id}: {e}")
+                    logger.error(f"Failed auto search for user {user.email}: {e}")
             
-            # 負荷軽減のため間隔を空ける
-            time.sleep(3)
-            
-            # RPP自動検索
-            if user.auto_rpp_search_enabled:
-                try:
-                    result = execute_user_auto_rpp_search(user.id)
-                    rpp_success = result.get('success', False) if result else False
-                    logger.info(f"RPP auto search for master user {user.id}: {'success' if rpp_success else 'failed'}")
-                except Exception as e:
-                    logger.error(f"RPP auto search failed for master user {user.id}: {e}")
-            
-            # どちらか一つでも成功した場合は日付を更新
-            if seo_success or rpp_success:
-                user.update_last_auto_search_date()
-                logger.info(f"Updated last auto search date for master user {user.id}")
+            # マスターアカウントの日付を更新（全体実行完了時）
+            if total_seo_success > 0 or total_rpp_success > 0:
+                master_user.update_last_auto_search_date()
+                logger.info(f"Master auto search completed - SEO: {total_seo_success}, RPP: {total_rpp_success} successes")
             
         except Exception as e:
-            logger.error(f"Failed auto search for master user {user.id}: {e}")
+            logger.error(f"Failed master auto search for {master_user.email}: {e}")
     
     logger.info("Auto keyword search task completed")
 
@@ -103,10 +134,11 @@ def nighttime_auto_search():
         logger.info(f"Not nighttime hours (current: {current_time.hour:02d}:XX), skipping auto search")
         return
     
-    # 自動検索が有効なユーザーを取得（マスターアカウント除く）
+    # 自動検索が有効なユーザーを取得（一般ユーザー + 招待ユーザー）
     eligible_users = []
     
-    for user in User.objects.filter(is_active=True, is_master=False):
+    # 一般ユーザー（マスター以外の非招待ユーザー）
+    for user in User.objects.filter(is_active=True, is_master=False, is_invited_user=False):
         # 既に今日実行済みかチェック
         if user.last_bulk_search_date == current_date:
             continue
@@ -114,6 +146,19 @@ def nighttime_auto_search():
         # SEOかRPPのどちらかが有効な場合のみ実行
         if user.auto_seo_search_enabled or user.auto_rpp_search_enabled:
             eligible_users.append(user)
+    
+    # 招待ユーザー（マスターアカウントの設定に従う）
+    master_user = User.objects.filter(is_master=True, is_active=True).first()
+    if master_user:
+        for invited_user in User.objects.filter(is_invited_user=True, is_active=True):
+            # 既に今日実行済みかチェック
+            if invited_user.last_bulk_search_date == current_date:
+                continue
+                
+            # マスターアカウントの設定に従う
+            if master_user.auto_seo_search_enabled or master_user.auto_rpp_search_enabled:
+                eligible_users.append(invited_user)
+                logger.info(f"Added invited user {invited_user.email} based on master settings")
     
     if not eligible_users:
         logger.info("No eligible users for nighttime auto search")
@@ -133,26 +178,37 @@ def nighttime_auto_search():
             seo_success = False
             rpp_success = False
             
+            # 招待ユーザーの場合はマスターアカウントの設定に従う
+            if user.is_invited_user:
+                master_user = User.objects.filter(is_master=True, is_active=True).first()
+                seo_enabled = master_user.auto_seo_search_enabled if master_user else False
+                rpp_enabled = master_user.auto_rpp_search_enabled if master_user else False
+                logger.info(f"Invited user {user.email} using master settings - SEO: {seo_enabled}, RPP: {rpp_enabled}")
+            else:
+                # 一般ユーザーは自分の設定に従う
+                seo_enabled = user.auto_seo_search_enabled
+                rpp_enabled = user.auto_rpp_search_enabled
+            
             # SEO自動検索
-            if user.auto_seo_search_enabled:
+            if seo_enabled:
                 try:
                     result = execute_user_auto_search(user.id)
                     seo_success = result.get('success', False) if result else False
-                    logger.info(f"SEO auto search for user {user.id}: {'success' if seo_success else 'failed'}")
+                    logger.info(f"SEO auto search for user {user.email}: {'success' if seo_success else 'failed'}")
                 except Exception as e:
-                    logger.error(f"SEO auto search failed for user {user.id}: {e}")
+                    logger.error(f"SEO auto search failed for user {user.email}: {e}")
             
             # 負荷軽減のため間隔を空ける
             time.sleep(5)
             
             # RPP自動検索
-            if user.auto_rpp_search_enabled:
+            if rpp_enabled:
                 try:
                     result = execute_user_auto_rpp_search(user.id)
                     rpp_success = result.get('success', False) if result else False
-                    logger.info(f"RPP auto search for user {user.id}: {'success' if rpp_success else 'failed'}")
+                    logger.info(f"RPP auto search for user {user.email}: {'success' if rpp_success else 'failed'}")
                 except Exception as e:
-                    logger.error(f"RPP auto search failed for user {user.id}: {e}")
+                    logger.error(f"RPP auto search failed for user {user.email}: {e}")
             
             # どちらか一つでも成功した場合は日付を更新
             if seo_success or rpp_success:
